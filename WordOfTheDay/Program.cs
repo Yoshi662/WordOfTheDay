@@ -16,8 +16,8 @@ namespace WordOfTheDay
 
     public class Program
     {
-        public readonly string version = "0.2.1rc";
-        public readonly string internalname = "Unlimited Fixes Works";
+        public readonly string version = "1.0.0";
+        public readonly string internalname = "Holy shit. it's done?";
         public DiscordClient Client { get; set; }
         private static Program prog;
 
@@ -75,7 +75,7 @@ namespace WordOfTheDay
             conelBot = await Client.GetChannelAsync(ulong.Parse(cfgjson.ConElBot));
             
 
-            Thread WOTD = new Thread(() => SetUpTimer(14, 00));
+           Thread WOTD = new Thread(() => SetUpTimer(14, 00));
             WOTD.Start();
 
             await Task.Delay(-1);
@@ -128,7 +128,7 @@ namespace WordOfTheDay
                     CheckPencil((DiscordMember)user);
                 }
             }
-
+          
                 //END OF IF WALL
                 return Task.CompletedTask;
         }
@@ -220,7 +220,7 @@ namespace WordOfTheDay
 
             DiscordEmbed embed = embedBuilder.Build();
             
-            await languagechannel.SendMessageAsync(WOTDrole.Mention, false, embed);
+            //await languagechannel.SendMessageAsync(WOTDrole.Mention, false, embed);
 
             return Task.CompletedTask;
         }
@@ -278,7 +278,6 @@ namespace WordOfTheDay
                 //Esto seguro que se puede mejorar. Pero no lo voy a hacer
                 DateTime proximoWOTD = new DateTime(AHORA.Year, AHORA.Month, (AHORA.Hour >= hora ? AHORA.Day + 1 : AHORA.Day), hora, minuto, segundo);
                 TimeSpan diff = proximoWOTD - AHORA;
-                conelBot.SendMessageAsync("Time until next WOTD: " + Math.Round(diff.TotalMinutes,2) + "min");
                 System.Threading.Thread.Sleep((int)diff.TotalMilliseconds);
                 sendWOTDAsync();
             }
@@ -297,11 +296,13 @@ namespace WordOfTheDay
 
             [JsonProperty("WOTDRole")]
             public string WOTDRole { get; private set; }
+
             [JsonProperty("CorrectMeRole")]
             public string CorrectMeRole { get; private set; }
 
             [JsonProperty("Suggestions")]
             public string Suggestions { get; private set; }
+
             [JsonProperty("ConElBot")]
             public string ConElBot { get; private set; }
         }

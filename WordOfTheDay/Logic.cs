@@ -25,10 +25,6 @@ namespace WordOfTheDay
             rawUnparsedXML = rawUnparsedXML.Replace("</content:encoded>", "</Img></content:encoded>"); //Creo que esto es lo mas hardcoded que he visto jamas
             rssXmlDoc.LoadXml(rawUnparsedXML);
 
-
-
-
-
             Strings.Add(rssXmlDoc.SelectSingleNode("rss/channel/link").InnerText);
 
             XmlNodeList NodeListTitle = rssXmlDoc.SelectNodes("//title"); //Por que el RSS tiene dos titulos y necesito el segundo
@@ -50,6 +46,10 @@ namespace WordOfTheDay
             }
             Strings.AddRange(Strings[2].Split(':')); //Separo uno de los strings dentro del string en otros dos strings ("test:test2") => ("test","test2")
 
+            for (int i = 0; i < Strings.Count; i++)
+			{
+                Strings[i] = Strings[i].Trim();
+			}
 
             //PARSE FROM STRING[] TO WOTD
             //Vamos a hacerlo bonito
@@ -62,7 +62,6 @@ namespace WordOfTheDay
             WordOfTheDay WOTD = new WordOfTheDay(es_word, en_word, es_sentence, en_sentence, link);
 
             return WOTD;
-
         }
 
 
