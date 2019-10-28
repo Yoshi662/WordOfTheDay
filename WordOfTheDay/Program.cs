@@ -220,7 +220,7 @@ namespace WordOfTheDay
 
             DiscordEmbed embed = embedBuilder.Build();
             
-            //await languagechannel.SendMessageAsync(WOTDrole.Mention, false, embed);
+            await languagechannel.SendMessageAsync(WOTDrole.Mention, false, embed);
 
             return Task.CompletedTask;
         }
