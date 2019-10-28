@@ -278,6 +278,8 @@ namespace WordOfTheDay
                 //Esto seguro que se puede mejorar. Pero no lo voy a hacer
                 DateTime proximoWOTD = new DateTime(AHORA.Year, AHORA.Month, (AHORA.Hour >= hora ? AHORA.Day + 1 : AHORA.Day), hora, minuto, segundo);
                 TimeSpan diff = proximoWOTD - AHORA;
+                int v = (int)diff.TotalMilliseconds;
+                conelBot.SendMessageAsync();
                 System.Threading.Thread.Sleep((int)diff.TotalMilliseconds);
                 sendWOTDAsync();
             }
