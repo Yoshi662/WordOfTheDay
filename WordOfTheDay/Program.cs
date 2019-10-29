@@ -16,7 +16,7 @@ namespace WordOfTheDay
 
     public class Program
     {
-        public readonly string version = "1.0.0";
+        public readonly string version = "1.0.2";
         public readonly string internalname = "Holy shit. it's done?";
         public DiscordClient Client { get; set; }
         private static Program prog;
@@ -279,7 +279,6 @@ namespace WordOfTheDay
                 DateTime proximoWOTD = new DateTime(AHORA.Year, AHORA.Month, (AHORA.Hour >= hora ? AHORA.Day + 1 : AHORA.Day), hora, minuto, segundo);
                 TimeSpan diff = proximoWOTD - AHORA;
                 int v = (int)diff.TotalMilliseconds;
-                conelBot.SendMessageAsync();
                 System.Threading.Thread.Sleep((int)diff.TotalMilliseconds);
                 sendWOTDAsync();
             }
