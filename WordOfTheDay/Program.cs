@@ -16,8 +16,8 @@ namespace WordOfTheDay
 
     public class Program
     {
-        public readonly string version = "1.0.2";
-        public readonly string internalname = "Holy shit. it's done?";
+        public readonly string version = "1.0.3";
+        public readonly string internalname = "Ionno";
         public DiscordClient Client { get; set; }
         private static Program prog;
 
@@ -182,7 +182,10 @@ namespace WordOfTheDay
         private Task WoteAsync(DiscordMessage message)
         {
             message.CreateReactionAsync(DiscordEmoji.FromName(Client, ":white_check_mark:"));
+            Thread.Sleep(250);
             message.CreateReactionAsync(DiscordEmoji.FromName(Client, ":x:"));
+            Thread.Sleep(250);
+            message.CreateReactionAsync(DiscordEmoji.FromGuildEmote(Client, 614346797141458974));
 
             return Task.CompletedTask;
         }
