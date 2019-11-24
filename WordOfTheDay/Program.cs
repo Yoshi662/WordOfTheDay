@@ -181,10 +181,11 @@ namespace WordOfTheDay
 
         private Task WoteAsync(DiscordMessage message)
         {
+            int delay = 650;
             message.CreateReactionAsync(DiscordEmoji.FromName(Client, ":white_check_mark:"));
-            Thread.Sleep(250);
+            Thread.Sleep(delay);
             message.CreateReactionAsync(DiscordEmoji.FromName(Client, ":x:"));
-            Thread.Sleep(250);
+            Thread.Sleep(delay);
             message.CreateReactionAsync(DiscordEmoji.FromGuildEmote(Client, 614346797141458974));
 
             return Task.CompletedTask;
