@@ -30,8 +30,6 @@ namespace WordOfTheDay
         private DiscordRole CorrectMeRole;
 
 
-
-
         public static void Main(string[] args)
         {
             prog = new Program();
@@ -58,7 +56,7 @@ namespace WordOfTheDay
             };
 
             this.Client = new DiscordClient(cfg);
-            
+
             this.Client.Ready += this.Client_Ready;
             this.Client.GuildAvailable += this.Client_GuildAvailable;
             this.Client.ClientErrored += this.Client_ClientError;
@@ -73,9 +71,9 @@ namespace WordOfTheDay
             CorrectMeRole = languageServer.GetRole(ulong.Parse(cfgjson.CorrectMeRole)); //CorrectMe Role
             suggestions = await Client.GetChannelAsync(ulong.Parse(cfgjson.Suggestions)); //Channel which recieves updates
             conelBot = await Client.GetChannelAsync(ulong.Parse(cfgjson.ConElBot));
-            
 
-           Thread WOTD = new Thread(() => SetUpTimer(14, 00));
+
+            Thread WOTD = new Thread(() => SetUpTimer(14, 00));
             WOTD.Start();
 
             await Task.Delay(-1);
@@ -127,13 +125,12 @@ namespace WordOfTheDay
                 {
                     CheckPencil((DiscordMember)user);
                 }
+                e.Channel.SendMessageAsync("All users have been checked");
             }
-          
-                //END OF IF WALL
-                return Task.CompletedTask;
-        }
 
-       
+            //END OF IF WALL
+            return Task.CompletedTask;
+        }
 
         private string generateHelp(DiscordMember member)
         {
@@ -158,7 +155,7 @@ namespace WordOfTheDay
 
             return salida;
         }
-       
+
         private Task Client_Ready(ReadyEventArgs e)
         {
             e.Client.DebugLogger.LogMessage(LogLevel.Info, "WordOfTheDay", "Client is ready to process events.", DateTime.Now);
@@ -223,7 +220,7 @@ namespace WordOfTheDay
             embedBuilder.AddField(":flag_gb:", $"{TodaysWOTD.en_word}\n{TodaysWOTD.en_sentence}", true);
 
             DiscordEmbed embed = embedBuilder.Build();
-            
+
             await languagechannel.SendMessageAsync(WOTDrole.Mention, false, embed);
 
             return Task.CompletedTask;
@@ -257,7 +254,8 @@ namespace WordOfTheDay
                     {
                         x.Nickname = member.DisplayName.Substring(0, member.DisplayName.Length - 2);
                     });
-                } else
+                }
+                else
                 {
                     member.ModifyAsync(x =>
                     {
