@@ -16,8 +16,8 @@ namespace WordOfTheDay
 
     public class Program
     {
-        public readonly string version = "1.0.3";
-        public readonly string internalname = "Ionno";
+        public readonly string version = "1.1.0";
+        public readonly string internalname = "BugFixing";
         public DiscordClient Client { get; set; }
         private static Program prog;
 
@@ -275,12 +275,27 @@ namespace WordOfTheDay
         public void SetUpTimer(int hora, int minuto, int segundo = 15) //FIXME YOU BASTARD
         {
             while (true)
-            {
-                DateTime AHORA = DateTime.Now;
-                //Esto seguro que se puede mejorar. Pero no lo voy a hacer
-                DateTime proximoWOTD = new DateTime(AHORA.Year, AHORA.Month, (AHORA.Hour >= hora ? AHORA.Day + 1 : AHORA.Day), hora, minuto, segundo);
-                TimeSpan diff = proximoWOTD - AHORA;
-                int v = (int)diff.TotalMilliseconds;
+            {             DateTime now = DateTime.Now; //Legibilidad
+
+                DateTime proximoWOTD;
+                bool isTodayEndOfMonth = (now.Day == DateTime.DaysInMonth(now.Year, now.Month));
+                bool isTodayEndOfYear = (now.DayOfYear == (DateTime.IsLeapYear(now.Year) ? 366 : 365));
+                bool isAfterSendTime = (DateTime.Compare(
+                    now,
+                    new DateTime(now.Year, now.Month, now.Day, hora, minuto, segundo)
+                    ) >= 1 ? true : false);
+
+                proximoWOTD = new DateTime( //?:!?:!?:!?:!?:!
+                    (isAfterSendTime ? (isTodayEndOfYear ? now.Year + 1 : now.Year) : now.Year),
+                    (isAfterSendTime ? (isTodayEndOfMonth ? (isTodayEndOfYear ? 1 : now.Month + 1) : now.Month) : now.Month),
+                    (isAfterSendTime ? (isTodayEndOfYear || isTodayEndOfMonth ? 1 : now.Day + 1) : now.Day),
+                    hora,
+                    minuto,
+                    segundo);
+
+
+                TimeSpan diff = proximoWOTD - now;
+
                 System.Threading.Thread.Sleep((int)diff.TotalMilliseconds);
                 sendWOTDAsync();
             }
