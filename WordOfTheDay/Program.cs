@@ -16,8 +16,8 @@ namespace WordOfTheDay
 
     public class Program
     {
-        public readonly string version = "1.1.0";
-        public readonly string internalname = "BugFixing";
+        public readonly string version = "1.1.1";
+        public readonly string internalname = "Ego"; //Actually don't
         public DiscordClient Client { get; set; }
         private static Program prog;
 
@@ -214,8 +214,9 @@ namespace WordOfTheDay
 
             embedBuilder.WithTitle("Word of the Day");
             embedBuilder.WithUrl(TodaysWOTD.link);
+            //https://imgur.com/rT9YocG
             embedBuilder.WithThumbnailUrl("https://cdn.discordapp.com/attachments/477632242190123027/603763546836303899/dummy.png");
-            embedBuilder.WithFooter("A Yoshi's bot", "https://cdn.discordapp.com/avatars/66139444276625408/0ac88686553320332a02122749508fb5.jpg");
+            embedBuilder.WithFooter("A Yoshi's bot", "https://i.imgur.com/rT9YocG.jpg");
             embedBuilder.AddField(":flag_es:", $"{TodaysWOTD.es_word}\n{TodaysWOTD.es_sentence}", true);
             embedBuilder.AddField(":flag_gb:", $"{TodaysWOTD.en_word}\n{TodaysWOTD.en_sentence}", true);
 
