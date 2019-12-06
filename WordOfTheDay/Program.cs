@@ -16,14 +16,15 @@ namespace WordOfTheDay
 
     public class Program
     {
-        public readonly string version = "1.1.1";
-        public readonly string internalname = "Ego"; //Actually don't
+        public readonly string version = "1.1.2";
+        public readonly string internalname = "It's the small things";
         public DiscordClient Client { get; set; }
         private static Program prog;
 
         DiscordGuild languageServer;
 
         private DiscordChannel languagechannel;
+        private DiscordChannel adminSuggestions;
         private DiscordChannel conelBot;
         private DiscordChannel suggestions;
         private DiscordRole WOTDrole;
@@ -70,8 +71,8 @@ namespace WordOfTheDay
             WOTDrole = languageServer.GetRole(ulong.Parse(cfgjson.WOTDRole)); //WOTD role
             CorrectMeRole = languageServer.GetRole(ulong.Parse(cfgjson.CorrectMeRole)); //CorrectMe Role
             suggestions = await Client.GetChannelAsync(ulong.Parse(cfgjson.Suggestions)); //Channel which recieves updates
+            adminSuggestions = await Client.GetChannelAsync(ulong.Parse(cfgjson.AdminSuggestions));
             conelBot = await Client.GetChannelAsync(ulong.Parse(cfgjson.ConElBot));
-
 
             Thread WOTD = new Thread(() => SetUpTimer(14, 00));
             WOTD.Start();
@@ -91,7 +92,10 @@ namespace WordOfTheDay
             //Esto es horrible pero bueno
             string mensaje = e.Message.Content.ToLower();
 
-            if (mensaje.StartsWith("-wote") || mensaje.StartsWith("wote") || e.Message.ChannelId == suggestions.Id)
+            if (mensaje.StartsWith("-wote") || 
+                mensaje.StartsWith("wote") || 
+                e.Message.ChannelId == suggestions.Id ||
+                e.Message.ChannelId == adminSuggestions.Id)
             {
                 WoteAsync(e.Message);
             }
@@ -273,10 +277,11 @@ namespace WordOfTheDay
         /// <param name="hora">Hora del dia a la que se envia la WOTD</param>
         /// <param name="minuto">Minuto de la hora a la que se envia la WOTD</param>
         /// <param name="segundo">Segundo de la hora la que se envia la WOTD</param>
-        public void SetUpTimer(int hora, int minuto, int segundo = 15) //FIXME YOU BASTARD
+        public void SetUpTimer(int hora, int minuto, int segundo = 15)
         {
             while (true)
-            {             DateTime now = DateTime.Now; //Legibilidad
+            {   
+                DateTime now = DateTime.Now; //Legibilidad
 
                 DateTime proximoWOTD;
                 bool isTodayEndOfMonth = (now.Day == DateTime.DaysInMonth(now.Year, now.Month));
@@ -321,7 +326,8 @@ namespace WordOfTheDay
 
             [JsonProperty("Suggestions")]
             public string Suggestions { get; private set; }
-
+            [JsonProperty("AdminSuggestions")]
+            public string AdminSuggestions { get; private set; }
             [JsonProperty("ConElBot")]
             public string ConElBot { get; private set; }
         }
