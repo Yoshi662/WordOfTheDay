@@ -74,6 +74,9 @@ namespace WordOfTheDay
             adminSuggestions = await Client.GetChannelAsync(ulong.Parse(cfgjson.AdminSuggestions));
             conelBot = await Client.GetChannelAsync(ulong.Parse(cfgjson.ConElBot));
 
+
+            await Client.UpdateStatusAsync(new DiscordActivity("-help"), UserStatus.Online);
+
             Thread WOTD = new Thread(() => SetUpTimer(14, 00));
             WOTD.Start();
 
@@ -92,8 +95,8 @@ namespace WordOfTheDay
             //Esto es horrible pero bueno
             string mensaje = e.Message.Content.ToLower();
 
-            if (mensaje.StartsWith("-wote") || 
-                mensaje.StartsWith("wote") || 
+            if (mensaje.StartsWith("-wote") ||
+                mensaje.StartsWith("wote") ||
                 e.Message.ChannelId == suggestions.Id ||
                 e.Message.ChannelId == adminSuggestions.Id)
             {
@@ -132,8 +135,24 @@ namespace WordOfTheDay
                 e.Channel.SendMessageAsync("All users have been checked");
             }
 
+            if (mensaje.StartsWith("-version"))
+            {
+                e.Channel.SendMessageAsync("", false, getVersionEmbed());
+            }
+
             //END OF IF WALL
             return Task.CompletedTask;
+        }
+
+        private DiscordEmbed getVersionEmbed()
+        {
+            DiscordEmbedBuilder embedBuilder = new DiscordEmbedBuilder();
+            embedBuilder.WithThumbnailUrl("https://cdn.discordapp.com/attachments/477632242190123027/603763546836303899/dummy.png");
+            embedBuilder.WithFooter("Using DSharpPlus", "https://dsharpplus.github.io/logo.png");
+            embedBuilder.WithTitle($"Word of the Day - v.{version}");
+            embedBuilder.AddField("Version Name", $"{internalname}");
+            embedBuilder.AddField("DSharpPlus", $"Version: {Client.VersionString}");
+            return embedBuilder.Build();
         }
 
         private string generateHelp(DiscordMember member)
@@ -144,7 +163,8 @@ namespace WordOfTheDay
             String salida = ">>> " + DiscordEmoji.FromName(Client, ":flag_es:") +
             "\n-Help: Muestra este texto de ayuda" +
             "\n-Ping: Muestra la latencia del server" +
-            "\n-Wote: Inicia una votacion";
+            "\n-Wote: Inicia una votacion" +
+            "\n-Version: Muestra la version del bot";
             if (admin) salida += "\n***Solo para administradores***" +
                     "\n-SendWOTD: Envia una nueva Palabra del dia" +
             "\n-CheckPencils: Checkea todos los usuarios, y pone o quita el emoji :pencil: segun tenga o no el rol de `Correct Me`";
@@ -152,7 +172,8 @@ namespace WordOfTheDay
             salida += "\n" + DiscordEmoji.FromName(Client, ":flag_gb:") +
             "\n-Help: Shows this help text" +
             "\n-Ping: Shows the server latency" +
-            "\n-Wote: Starts a vote";
+            "\n-Wote: Starts a vote" +
+            "\n-Version: Shows the current version";
             if (admin) salida += "\n***Admin only***" +
                     "\n-SendWOTD: Sends a new Word of the day" +
             "\n-CheckPencils: Checks all users and gives or removes the :pencil: emoji depending if the user has the `Correct Me` role";
@@ -280,7 +301,7 @@ namespace WordOfTheDay
         public void SetUpTimer(int hora, int minuto, int segundo = 15)
         {
             while (true)
-            {   
+            {
                 DateTime now = DateTime.Now; //Legibilidad
 
                 DateTime proximoWOTD;
