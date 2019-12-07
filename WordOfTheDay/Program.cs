@@ -17,7 +17,7 @@ namespace WordOfTheDay
     public class Program
     {
         public readonly string version = "1.1.2";
-        public readonly string internalname = "It's the small things";
+        public readonly string internalname = "Hey. Now you can see this!";
         public DiscordClient Client { get; set; }
         private static Program prog;
 
