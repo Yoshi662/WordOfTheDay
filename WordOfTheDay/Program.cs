@@ -152,6 +152,7 @@ namespace WordOfTheDay
             embedBuilder.WithFooter("Using DSharpPlus", "https://dsharpplus.github.io/logo.png");
             embedBuilder.WithTitle($"Word of the Day - v.{version}");
             embedBuilder.AddField("Version Name", $"{internalname}");
+            embedBuilder.AddField("Source Code", "See the source code at: https://github.com/Yoshi662/WordOfTheDay");
             embedBuilder.AddField("DSharpPlus", $"Version: {Client.VersionString}");
             return embedBuilder.Build();
         }
