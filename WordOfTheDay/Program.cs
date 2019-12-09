@@ -16,8 +16,8 @@ namespace WordOfTheDay
 
     public class Program
     {
-        public readonly string version = "1.1.2";
-        public readonly string internalname = "Hey. Now you can see this!";
+        public readonly string  version = "1.1.4";
+        public readonly string  internalname = "Stop Spam";
         public DiscordClient Client { get; set; }
         private static Program prog;
 
@@ -140,6 +140,7 @@ namespace WordOfTheDay
                 e.Channel.SendMessageAsync("", false, getVersionEmbed());
             }
 
+           
             //END OF IF WALL
             return Task.CompletedTask;
         }
@@ -203,11 +204,10 @@ namespace WordOfTheDay
 
         private Task WoteAsync(DiscordMessage message)
         {
-            int delay = 650;
             message.CreateReactionAsync(DiscordEmoji.FromName(Client, ":white_check_mark:"));
-            Thread.Sleep(delay);
+            Delay();
             message.CreateReactionAsync(DiscordEmoji.FromName(Client, ":x:"));
-            Thread.Sleep(delay);
+            Delay();
             message.CreateReactionAsync(DiscordEmoji.FromGuildEmote(Client, 614346797141458974));
 
             return Task.CompletedTask;
@@ -235,7 +235,11 @@ namespace WordOfTheDay
             WordOfTheDay TodaysWOTD = Logic.GetXMLWOTD();
 
             DiscordEmbedBuilder embedBuilder = new DiscordEmbedBuilder();
-
+            await WOTDrole.ModifyAsync(role =>
+            {
+                role.Mentionable = true;
+            });
+            
 
             embedBuilder.WithTitle("Word of the Day");
             embedBuilder.WithUrl(TodaysWOTD.link);
@@ -246,8 +250,13 @@ namespace WordOfTheDay
             embedBuilder.AddField(":flag_gb:", $"{TodaysWOTD.en_word}\n{TodaysWOTD.en_sentence}", true);
 
             DiscordEmbed embed = embedBuilder.Build();
-
+            Delay();
             await languagechannel.SendMessageAsync(WOTDrole.Mention, false, embed);
+
+            await WOTDrole.ModifyAsync(role =>
+            {
+                role.Mentionable = false;
+            });
 
             return Task.CompletedTask;
         }
@@ -326,6 +335,11 @@ namespace WordOfTheDay
                 System.Threading.Thread.Sleep((int)diff.TotalMilliseconds);
                 sendWOTDAsync();
             }
+        }
+
+        public void Delay(int delay = 650)
+        {
+            System.Threading.Thread.Sleep(delay);
         }
 
         public struct ConfigJson
