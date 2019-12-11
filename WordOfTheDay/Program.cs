@@ -16,8 +16,8 @@ namespace WordOfTheDay
 
     public class Program
     {
-        public readonly string  version = "1.1.4";
-        public readonly string  internalname = "Stop Spam";
+        public readonly string version = "1.1.5";
+        public readonly string internalname = "J-Turn";
         public DiscordClient Client { get; set; }
         private static Program prog;
 
@@ -90,7 +90,7 @@ namespace WordOfTheDay
         }
 
 
-        private Task Client_MessageCreated(MessageCreateEventArgs e)
+        private async Task<Task> Client_MessageCreated(MessageCreateEventArgs e)
         {
             //Esto es horrible pero bueno
             string mensaje = e.Message.Content.ToLower();
@@ -100,29 +100,29 @@ namespace WordOfTheDay
                 e.Message.ChannelId == suggestions.Id ||
                 e.Message.ChannelId == adminSuggestions.Id)
             {
-                WoteAsync(e.Message);
+                await WoteAsync(e.Message);
             }
 
             if (!mensaje.StartsWith("-")) return Task.CompletedTask; //OPTIMIZAAAAAAR    
 
             if (mensaje.StartsWith("-ping"))
             {
-                e.Message.RespondAsync("Pong! " + Client.Ping + "ms");
+                await e.Message.RespondAsync("Pong! " + Client.Ping + "ms");
             }
 
             if (mensaje.StartsWith("-help"))
             {
                 DiscordMember member = (DiscordMember)e.Author;
-                member.SendMessageAsync(generateHelp(member));
+                await member.SendMessageAsync(generateHelp(member));
 
-                e.Message.RespondAsync(
+                await e.Message.RespondAsync(
                     DiscordEmoji.FromName(Client, ":flag_es:") + "Ayuda Enviada por mensaje privado\n"
                   + DiscordEmoji.FromName(Client, ":flag_gb:") + "Help sent via direct message");
             }
 
             if (mensaje.StartsWith("-sendwotd") && isAdmin(e.Author))
             {
-                sendWOTDAsync();
+                await sendWOTDAsync();
             }
 
             if (mensaje.StartsWith("-checkpencils") && isAdmin(e.Author))
@@ -132,15 +132,53 @@ namespace WordOfTheDay
                 {
                     CheckPencil((DiscordMember)user);
                 }
-                e.Channel.SendMessageAsync("All users have been checked");
+                await e.Channel.SendMessageAsync("All users have been checked");
             }
 
             if (mensaje.StartsWith("-version"))
             {
-                e.Channel.SendMessageAsync("", false, getVersionEmbed());
+                await e.Channel.SendMessageAsync("", false, getVersionEmbed());
+            }
+            if (mensaje.StartsWith("-isblocked") && isAdmin(e.Author))
+            {
+                DiscordMember senderMember = (DiscordMember)e.Author;
+                string nickname = "";
+                try
+                {
+                    ulong userid = ulong.Parse(mensaje.Substring(10));
+                    DiscordUser objUser = await Client.GetUserAsync(userid);
+                    DiscordMember objMember = await languageServer.GetMemberAsync(userid);
+                    nickname = objMember.Nickname;
+                    IReadOnlyList<DiscordMessage> mensajes = await conelBot.GetMessagesAsync(250);
+                    bool ischecked = false;
+                    foreach (DiscordMessage MensajeLocal in mensajes)
+                    {
+                        if (MensajeLocal.Author == objMember && !ischecked)
+                        {
+                            await MensajeLocal.CreateReactionAsync(DiscordEmoji.FromName(Client, ":thinking:"));
+                            Delay();
+                            await MensajeLocal.DeleteOwnReactionAsync(DiscordEmoji.FromName(Client, ":thinking:"));
+                            await senderMember.SendMessageAsync($"El usuario {nickname} **No** ha bloqueado al bot");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+
+                    if (ex is ArgumentNullException || ex is FormatException || ex is OverflowException)
+                    {
+
+                        await senderMember.SendMessageAsync("Excepcion no controlada. Es posible que no hayas puesto bien el ID");
+                    }
+                    if (ex.Message == "Unauthorized: 403")
+                    {
+                        await senderMember.SendMessageAsync($"El usuario {nickname} ha bloqueado al bot");
+                    }
+
+                }
+
             }
 
-           
             //END OF IF WALL
             return Task.CompletedTask;
         }
@@ -169,7 +207,8 @@ namespace WordOfTheDay
             "\n-Version: Muestra la version del bot";
             if (admin) salida += "\n***Solo para administradores***" +
                     "\n-SendWOTD: Envia una nueva Palabra del dia" +
-            "\n-CheckPencils: Checkea todos los usuarios, y pone o quita el emoji :pencil: segun tenga o no el rol de `Correct Me`";
+            "\n-CheckPencils: Checkea todos los usuarios, y pone o quita el emoji :pencil: segun tenga o no el rol de `Correct Me`" + 
+            "\n-IsBlocked (DiscordUserID): Comprueba si el usuario con el id suministrado ha bloqueado al bot";
             //ENG
             salida += "\n" + DiscordEmoji.FromName(Client, ":flag_gb:") +
             "\n-Help: Shows this help text" +
@@ -178,7 +217,8 @@ namespace WordOfTheDay
             "\n-Version: Shows the current version";
             if (admin) salida += "\n***Admin only***" +
                     "\n-SendWOTD: Sends a new Word of the day" +
-            "\n-CheckPencils: Checks all users and gives or removes the :pencil: emoji depending if the user has the `Correct Me` role";
+            "\n-CheckPencils: Checks all users and gives or removes the :pencil: emoji depending if the user has the `Correct Me` role" +
+            "\n-IsBlocked (DiscordUserID): Checks whether the user with the supplied id has blocked the bot";
 
             return salida;
         }
@@ -240,7 +280,7 @@ namespace WordOfTheDay
             {
                 role.Mentionable = true;
             });
-            
+
 
             embedBuilder.WithTitle("Word of the Day");
             embedBuilder.WithUrl(TodaysWOTD.link);
