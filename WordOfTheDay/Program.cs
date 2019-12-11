@@ -16,7 +16,7 @@ namespace WordOfTheDay
 
     public class Program
     {
-        public readonly string version = "1.1.5";
+        public readonly string version = "1.1.5.1";
         public readonly string internalname = "J-Turn";
         public DiscordClient Client { get; set; }
         private static Program prog;
@@ -155,6 +155,7 @@ namespace WordOfTheDay
                     {
                         if (MensajeLocal.Author == objMember && !ischecked)
                         {
+                            ischecked = true;
                             await MensajeLocal.CreateReactionAsync(DiscordEmoji.FromName(Client, ":thinking:"));
                             Delay();
                             await MensajeLocal.DeleteOwnReactionAsync(DiscordEmoji.FromName(Client, ":thinking:"));
