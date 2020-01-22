@@ -214,6 +214,7 @@ namespace WordOfTheDay
             String salida = ">>> " + DiscordEmoji.FromName(Client, ":flag_es:") +
             "\n-Help: Muestra este texto de ayuda" +
             "\n-Ping: Muestra la latencia del server" +
+            "\n-Roles: Recuerda a los usuarios que deben de ponerse los roles" +
             "\n-Wote: Inicia una votacion" +
             "\n-Version: Muestra la version del bot";
             if (admin) salida += "\n***Solo para administradores***" +
@@ -224,6 +225,7 @@ namespace WordOfTheDay
             salida += "\n" + DiscordEmoji.FromName(Client, ":flag_gb:") +
             "\n-Help: Shows this help text" +
             "\n-Ping: Shows the server latency" +
+            "\n-roles: reminds users to set up their roles" +
             "\n-Wote: Starts a vote" +
             "\n-Version: Shows the current version";
             if (admin) salida += "\n***Admin only***" +
