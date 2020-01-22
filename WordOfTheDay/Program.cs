@@ -16,8 +16,8 @@ namespace WordOfTheDay
 
     public class Program
     {
-        public readonly string version = "1.1.5.1";
-        public readonly string internalname = "J-Turn";
+        public readonly string version = "1.1.6";
+        public readonly string internalname = "Set up your roles!";
         public DiscordClient Client { get; set; }
         private static Program prog;
 
@@ -63,7 +63,7 @@ namespace WordOfTheDay
             this.Client.ClientErrored += this.Client_ClientError;
             this.Client.MessageCreated += Client_MessageCreated;
             this.Client.GuildMemberUpdated += Client_GuildMemberUpdated;
-
+           
             await this.Client.ConnectAsync();
 
             languagechannel = await Client.GetChannelAsync(ulong.Parse(cfgjson.WOTDChannel)); //Channel which recieves updates
@@ -82,6 +82,7 @@ namespace WordOfTheDay
 
             await Task.Delay(-1);
         }
+
 
         private Task Client_GuildMemberUpdated(GuildMemberUpdateEventArgs e)
         {
@@ -116,8 +117,8 @@ namespace WordOfTheDay
                 await member.SendMessageAsync(generateHelp(member));
 
                 await e.Message.RespondAsync(
-                    DiscordEmoji.FromName(Client, ":flag_es:") + "Ayuda Enviada por mensaje privado\n"
-                  + DiscordEmoji.FromName(Client, ":flag_gb:") + "Help sent via direct message");
+                    DiscordEmoji.FromName(Client, ":flag_es:") + " Ayuda Enviada por mensaje privado\n"
+                  + DiscordEmoji.FromName(Client, ":flag_gb:") + " Help sent via direct message");
             }
 
             if (mensaje.StartsWith("-sendwotd") && isAdmin(e.Author))
@@ -139,6 +140,7 @@ namespace WordOfTheDay
             {
                 await e.Channel.SendMessageAsync("", false, getVersionEmbed());
             }
+            
             if (mensaje.StartsWith("-isblocked") && isAdmin(e.Author))
             {
                 DiscordMember senderMember = (DiscordMember)e.Author;
@@ -168,7 +170,6 @@ namespace WordOfTheDay
 
                     if (ex is ArgumentNullException || ex is FormatException || ex is OverflowException)
                     {
-
                         await senderMember.SendMessageAsync("Excepcion no controlada. Es posible que no hayas puesto bien el ID");
                     }
                     if (ex.Message == "Unauthorized: 403")
@@ -180,6 +181,11 @@ namespace WordOfTheDay
 
             }
 
+            if (mensaje.StartsWith("-roles"))
+            {
+               await e.Channel.SendMessageAsync($":flag_es: Por favor ponte los roles adecuados en #roles.\n" +
+                                                $":flag_gb: Please set up your roles in #roles.");
+            }
             //END OF IF WALL
             return Task.CompletedTask;
         }
