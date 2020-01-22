@@ -27,6 +27,7 @@ namespace WordOfTheDay
         private DiscordChannel adminSuggestions;
         private DiscordChannel conelBot;
         private DiscordChannel suggestions;
+        private DiscordChannel roles;
         private DiscordRole WOTDrole;
         private DiscordRole CorrectMeRole;
 
@@ -63,7 +64,7 @@ namespace WordOfTheDay
             this.Client.ClientErrored += this.Client_ClientError;
             this.Client.MessageCreated += Client_MessageCreated;
             this.Client.GuildMemberUpdated += Client_GuildMemberUpdated;
-           
+
             await this.Client.ConnectAsync();
 
             languagechannel = await Client.GetChannelAsync(ulong.Parse(cfgjson.WOTDChannel)); //Channel which recieves updates
@@ -73,7 +74,7 @@ namespace WordOfTheDay
             suggestions = await Client.GetChannelAsync(ulong.Parse(cfgjson.Suggestions)); //Channel which recieves updates
             adminSuggestions = await Client.GetChannelAsync(ulong.Parse(cfgjson.AdminSuggestions));
             conelBot = await Client.GetChannelAsync(ulong.Parse(cfgjson.ConElBot));
-
+            roles = await Client.GetChannelAsync(ulong.Parse(cfgjson.RolesChannel)); //Channel which users get their roles from.
 
             await Client.UpdateStatusAsync(new DiscordActivity("-help"), UserStatus.Online);
 
@@ -140,7 +141,7 @@ namespace WordOfTheDay
             {
                 await e.Channel.SendMessageAsync("", false, getVersionEmbed());
             }
-            
+
             if (mensaje.StartsWith("-isblocked") && isAdmin(e.Author))
             {
                 DiscordMember senderMember = (DiscordMember)e.Author;
@@ -183,9 +184,12 @@ namespace WordOfTheDay
 
             if (mensaje.StartsWith("-roles"))
             {
-               await e.Channel.SendMessageAsync($":flag_es: Por favor ponte los roles adecuados en #roles.\n" +
-                                                $":flag_gb: Please set up your roles in #roles.");
+                await e.Channel.SendMessageAsync(
+                     $"{DiscordEmoji.FromName(Client, ":flag_es:")} Por favor ponte los roles adecuados en {roles.Mention}\n" +
+                     $"{DiscordEmoji.FromName(Client, ":flag_gb:")} Please set up your roles in {roles.Mention}"
+                 );
             }
+            
             //END OF IF WALL
             return Task.CompletedTask;
         }
@@ -214,7 +218,7 @@ namespace WordOfTheDay
             "\n-Version: Muestra la version del bot";
             if (admin) salida += "\n***Solo para administradores***" +
                     "\n-SendWOTD: Envia una nueva Palabra del dia" +
-            "\n-CheckPencils: Checkea todos los usuarios, y pone o quita el emoji :pencil: segun tenga o no el rol de `Correct Me`" + 
+            "\n-CheckPencils: Checkea todos los usuarios, y pone o quita el emoji :pencil: segun tenga o no el rol de `Correct Me`" +
             "\n-IsBlocked (DiscordUserID): Comprueba si el usuario con el id suministrado ha bloqueado al bot";
             //ENG
             salida += "\n" + DiscordEmoji.FromName(Client, ":flag_gb:") +
@@ -409,10 +413,15 @@ namespace WordOfTheDay
 
             [JsonProperty("Suggestions")]
             public string Suggestions { get; private set; }
+
             [JsonProperty("AdminSuggestions")]
             public string AdminSuggestions { get; private set; }
+
             [JsonProperty("ConElBot")]
             public string ConElBot { get; private set; }
+
+            [JsonProperty("RolesChannel")]
+            public string RolesChannel { get; private set; }
         }
     }
 }
