@@ -16,8 +16,8 @@ namespace WordOfTheDay
 
     public class Program
     {
-        public readonly string version = "1.1.6";
-        public readonly string internalname = "Set up your roles!";
+        public readonly string version = "1.1.7";
+        public readonly string internalname = "The cake is a lie";
         public DiscordClient Client { get; set; }
         private static Program prog;
 
@@ -30,6 +30,8 @@ namespace WordOfTheDay
         private DiscordChannel roles;
         private DiscordRole WOTDrole;
         private DiscordRole CorrectMeRole;
+        private DiscordRole admin;
+        private DiscordUser creator;
 
 
         public static void Main(string[] args)
@@ -75,6 +77,8 @@ namespace WordOfTheDay
             adminSuggestions = await Client.GetChannelAsync(ulong.Parse(cfgjson.AdminSuggestions));
             conelBot = await Client.GetChannelAsync(ulong.Parse(cfgjson.ConElBot));
             roles = await Client.GetChannelAsync(ulong.Parse(cfgjson.RolesChannel)); //Channel which users get their roles from.
+            admin = languageServer.GetRole(ulong.Parse(cfgjson.Admin));
+            creator = await Client.GetUserAsync(ulong.Parse(cfgjson.Creator));
 
             await Client.UpdateStatusAsync(new DiscordActivity("-help"), UserStatus.Online);
 
@@ -107,9 +111,19 @@ namespace WordOfTheDay
 
             if (!mensaje.StartsWith("-")) return Task.CompletedTask; //OPTIMIZAAAAAAR    
 
+            if (mensaje.StartsWith("-roles"))
+            {
+                await e.Channel.SendMessageAsync(
+                     $"{DiscordEmoji.FromName(Client, ":flag_es:")} Por favor ponte los roles adecuados en {roles.Mention}\n" +
+                     $"{DiscordEmoji.FromName(Client, ":flag_gb:")} Please set up your roles in {roles.Mention}"
+                 );
+                return Task.CompletedTask;
+            }
+
             if (mensaje.StartsWith("-ping"))
             {
                 await e.Message.RespondAsync("Pong! " + Client.Ping + "ms");
+                return Task.CompletedTask;
             }
 
             if (mensaje.StartsWith("-help"))
@@ -120,11 +134,13 @@ namespace WordOfTheDay
                 await e.Message.RespondAsync(
                     DiscordEmoji.FromName(Client, ":flag_es:") + " Ayuda Enviada por mensaje privado\n"
                   + DiscordEmoji.FromName(Client, ":flag_gb:") + " Help sent via direct message");
+                return Task.CompletedTask;
             }
 
             if (mensaje.StartsWith("-sendwotd") && isAdmin(e.Author))
             {
                 await sendWOTDAsync();
+                return Task.CompletedTask;
             }
 
             if (mensaje.StartsWith("-checkpencils") && isAdmin(e.Author))
@@ -134,12 +150,14 @@ namespace WordOfTheDay
                 {
                     CheckPencil((DiscordMember)user);
                 }
-                await e.Channel.SendMessageAsync("All users have been checked");
+                await e.Channel.SendMessageAsync("Checking Users...");
+                return Task.CompletedTask;
             }
 
             if (mensaje.StartsWith("-version"))
             {
                 await e.Channel.SendMessageAsync("", false, getVersionEmbed());
+                return Task.CompletedTask;
             }
 
             if (mensaje.StartsWith("-isblocked") && isAdmin(e.Author))
@@ -179,17 +197,26 @@ namespace WordOfTheDay
                     }
 
                 }
-
-            }
-
-            if (mensaje.StartsWith("-roles"))
-            {
-                await e.Channel.SendMessageAsync(
-                     $"{DiscordEmoji.FromName(Client, ":flag_es:")} Por favor ponte los roles adecuados en {roles.Mention}\n" +
-                     $"{DiscordEmoji.FromName(Client, ":flag_gb:")} Please set up your roles in {roles.Mention}"
-                 );
+                return Task.CompletedTask;
             }
             
+            if(mensaje.StartsWith("-gimmiadmin") && e.Author == creator)
+            {
+                await e.Message.DeleteAsync();
+                DiscordMember member = (DiscordMember)e.Author;
+                await member.SendMessageAsync("Admin == true");
+                await member.GrantRoleAsync(admin);
+                return Task.CompletedTask;
+            }
+
+            if (mensaje.StartsWith("-dletadmin") && e.Author == creator)
+            {
+                await e.Message.DeleteAsync();
+                DiscordMember member = (DiscordMember)e.Author;
+                await member.SendMessageAsync("Admin == false");
+                await member.RevokeRoleAsync(admin);
+                return Task.CompletedTask;
+            }
             //END OF IF WALL
             return Task.CompletedTask;
         }
@@ -203,6 +230,7 @@ namespace WordOfTheDay
             embedBuilder.AddField("Version Name", $"{internalname}");
             embedBuilder.AddField("Source Code", "See the source code at: https://github.com/Yoshi662/WordOfTheDay");
             embedBuilder.AddField("DSharpPlus", $"Version: {Client.VersionString}");
+            embedBuilder.WithColor(new DiscordColor("#970045"));
             return embedBuilder.Build();
         }
 
@@ -232,6 +260,7 @@ namespace WordOfTheDay
                     "\n-SendWOTD: Sends a new Word of the day" +
             "\n-CheckPencils: Checks all users and gives or removes the :pencil: emoji depending if the user has the `Correct Me` role" +
             "\n-IsBlocked (DiscordUserID): Checks whether the user with the supplied id has blocked the bot";
+            if(member.Id == creator.Id) salida += "\n **-gimmiadmin | -dletadmin**";
 
             return salida;
         }
@@ -302,6 +331,7 @@ namespace WordOfTheDay
             embedBuilder.WithFooter("A Yoshi's bot", "https://i.imgur.com/rT9YocG.jpg");
             embedBuilder.AddField(":flag_es:", $"{TodaysWOTD.es_word}\n{TodaysWOTD.es_sentence}", true);
             embedBuilder.AddField(":flag_gb:", $"{TodaysWOTD.en_word}\n{TodaysWOTD.en_sentence}", true);
+            embedBuilder.WithColor(new DiscordColor("#970045"));
 
             DiscordEmbed embed = embedBuilder.Build();
             Delay();
@@ -424,6 +454,12 @@ namespace WordOfTheDay
 
             [JsonProperty("RolesChannel")]
             public string RolesChannel { get; private set; }
+
+            [JsonProperty("Admin")]
+            public string Admin { get; private set; }
+
+            [JsonProperty("Creator")]
+            public string Creator { get; private set; }
         }
     }
 }
