@@ -16,8 +16,8 @@ namespace WordOfTheDay
 
     public class Program
     {
-        public readonly string version = "1.1.7";
-        public readonly string internalname = "The cake is a lie";
+        public readonly string version = "1.2.0";
+        public readonly string internalname = "Doing someone's job :eyes:";
         public DiscordClient Client { get; set; }
         private static Program prog;
 
@@ -32,8 +32,14 @@ namespace WordOfTheDay
         private DiscordRole CorrectMeRole;
         private DiscordRole admin;
         private DiscordUser creator;
+        /// <summary>
+        /// Key is the ID of the message
+        /// Value is a Dictionary whose Key is the DiscordName of the Emoji Ex: ":eyes:"
+        /// and the Value is the ID of the role
+        /// </summary>
+        public Dictionary<ulong, Dictionary<String, ulong>> ReactionRole;
 
-
+        #region Main Logic
         public static void Main(string[] args)
         {
             prog = new Program();
@@ -43,12 +49,12 @@ namespace WordOfTheDay
         public async Task RunBotAsync()
         {
             //Abrir JSON file
-            string json = "";
+            string jsonConfString = "";
             using (FileStream fs = File.OpenRead("config.json"))
             using (StreamReader sr = new StreamReader(fs, new UTF8Encoding(false)))
-                json = await sr.ReadToEndAsync();
+                jsonConfString = await sr.ReadToEndAsync();
 
-            ConfigJson cfgjson = JsonConvert.DeserializeObject<ConfigJson>(json);
+            ConfigJson cfgjson = JsonConvert.DeserializeObject<ConfigJson>(jsonConfString);
             DiscordConfiguration cfg = new DiscordConfiguration
             {
                 Token = cfgjson.Token,
@@ -66,8 +72,17 @@ namespace WordOfTheDay
             this.Client.ClientErrored += this.Client_ClientError;
             this.Client.MessageCreated += Client_MessageCreated;
             this.Client.GuildMemberUpdated += Client_GuildMemberUpdated;
+            this.Client.MessageReactionAdded += Client_MessageReactionAdded;
+            this.Client.MessageReactionRemoved += Client_MessageReactionRemoved;
 
             await this.Client.ConnectAsync();
+
+
+
+            //ReactionRole = JsonConvert.DeserializeObject <Dictionary<ulong, Dictionary<String, ulong>>>(File.ReadAllText("RR.json"));
+
+            ReactionRole = JsonConvert.DeserializeObject<Dictionary<ulong, Dictionary<String, ulong>>>(File.ReadAllText("RR.Json"));
+
 
             languagechannel = await Client.GetChannelAsync(ulong.Parse(cfgjson.WOTDChannel)); //Channel which recieves updates
             languageServer = await Client.GetGuildAsync(ulong.Parse(cfgjson.LanguageServer)); //Server
@@ -85,16 +100,47 @@ namespace WordOfTheDay
             Thread WOTD = new Thread(() => SetUpTimer(14, 00));
             WOTD.Start();
 
+
             await Task.Delay(-1);
         }
 
 
+
+        private Task Client_MessageReactionAdded(MessageReactionAddEventArgs e)
+        {
+            if (e.Channel != roles) { return Task.CompletedTask; }
+            String emojiname = e.Emoji.GetDiscordName();
+
+            if (ReactionRole.ContainsKey(e.Message.Id))
+            {
+                Dictionary<string, ulong> auxDict = ReactionRole[e.Message.Id];
+                DiscordMember sender = (DiscordMember)e.User;
+                sender.GrantRoleAsync(languageServer.GetRole(auxDict[emojiname]));
+            }
+            return Task.CompletedTask;
+        }
+
+        private Task Client_MessageReactionRemoved(MessageReactionRemoveEventArgs e)
+        {
+            if (e.Channel != roles) { return Task.CompletedTask; }
+            String emojiname = e.Emoji.GetDiscordName();
+
+            if (ReactionRole.ContainsKey(e.Message.Id))
+            {
+                Dictionary<string, ulong> auxDict = ReactionRole[e.Message.Id];
+                DiscordMember sender = (DiscordMember)e.User;
+                sender.RevokeRoleAsync(languageServer.GetRole(auxDict[emojiname]));
+            }
+            return Task.CompletedTask;
+        }
+        #endregion
+
+        #region events
         private Task Client_GuildMemberUpdated(GuildMemberUpdateEventArgs e)
         {
             CheckPencil(e.Member);
             return Task.CompletedTask;
         }
-
 
         private async Task<Task> Client_MessageCreated(MessageCreateEventArgs e)
         {
@@ -143,6 +189,12 @@ namespace WordOfTheDay
                 return Task.CompletedTask;
             }
 
+            if (mensaje.StartsWith("-version"))
+            {
+                await e.Channel.SendMessageAsync("", false, getVersionEmbed());
+                return Task.CompletedTask;
+            }
+
             if (mensaje.StartsWith("-checkpencils") && isAdmin(e.Author))
             {
                 IEnumerable<DiscordUser> users = languagechannel.Users;
@@ -151,12 +203,6 @@ namespace WordOfTheDay
                     CheckPencil((DiscordMember)user);
                 }
                 await e.Channel.SendMessageAsync("Checking Users...");
-                return Task.CompletedTask;
-            }
-
-            if (mensaje.StartsWith("-version"))
-            {
-                await e.Channel.SendMessageAsync("", false, getVersionEmbed());
                 return Task.CompletedTask;
             }
 
@@ -199,8 +245,8 @@ namespace WordOfTheDay
                 }
                 return Task.CompletedTask;
             }
-            
-            if(mensaje.StartsWith("-gimmiadmin") && e.Author == creator)
+
+            if (mensaje.StartsWith("-gimmiadmin") && e.Author == creator)
             {
                 await e.Message.DeleteAsync();
                 DiscordMember member = (DiscordMember)e.Author;
@@ -219,50 +265,6 @@ namespace WordOfTheDay
             }
             //END OF IF WALL
             return Task.CompletedTask;
-        }
-
-        private DiscordEmbed getVersionEmbed()
-        {
-            DiscordEmbedBuilder embedBuilder = new DiscordEmbedBuilder();
-            embedBuilder.WithThumbnailUrl("https://cdn.discordapp.com/attachments/477632242190123027/603763546836303899/dummy.png");
-            embedBuilder.WithFooter("Using DSharpPlus", "https://dsharpplus.github.io/logo.png");
-            embedBuilder.WithTitle($"Word of the Day - v.{version}");
-            embedBuilder.AddField("Version Name", $"{internalname}");
-            embedBuilder.AddField("Source Code", "See the source code at: https://github.com/Yoshi662/WordOfTheDay");
-            embedBuilder.AddField("DSharpPlus", $"Version: {Client.VersionString}");
-            embedBuilder.WithColor(new DiscordColor("#970045"));
-            return embedBuilder.Build();
-        }
-
-        private string generateHelp(DiscordMember member)
-        {
-            bool admin = isAdmin(member);
-
-            //ESP
-            String salida = ">>> " + DiscordEmoji.FromName(Client, ":flag_es:") +
-            "\n-Help: Muestra este texto de ayuda" +
-            "\n-Ping: Muestra la latencia del server" +
-            "\n-Roles: Recuerda a los usuarios que deben de ponerse los roles" +
-            "\n-Wote: Inicia una votacion" +
-            "\n-Version: Muestra la version del bot";
-            if (admin) salida += "\n***Solo para administradores***" +
-                    "\n-SendWOTD: Envia una nueva Palabra del dia" +
-            "\n-CheckPencils: Checkea todos los usuarios, y pone o quita el emoji :pencil: segun tenga o no el rol de `Correct Me`" +
-            "\n-IsBlocked (DiscordUserID): Comprueba si el usuario con el id suministrado ha bloqueado al bot";
-            //ENG
-            salida += "\n" + DiscordEmoji.FromName(Client, ":flag_gb:") +
-            "\n-Help: Shows this help text" +
-            "\n-Ping: Shows the server latency" +
-            "\n-roles: reminds users to set up their roles" +
-            "\n-Wote: Starts a vote" +
-            "\n-Version: Shows the current version";
-            if (admin) salida += "\n***Admin only***" +
-                    "\n-SendWOTD: Sends a new Word of the day" +
-            "\n-CheckPencils: Checks all users and gives or removes the :pencil: emoji depending if the user has the `Correct Me` role" +
-            "\n-IsBlocked (DiscordUserID): Checks whether the user with the supplied id has blocked the bot";
-            if(member.Id == creator.Id) salida += "\n **-gimmiadmin | -dletadmin**";
-
-            return salida;
         }
 
         private Task Client_Ready(ReadyEventArgs e)
@@ -284,35 +286,9 @@ namespace WordOfTheDay
             prog.RunBotAsync().GetAwaiter().GetResult();
             return Task.CompletedTask;
         }
+        #endregion
 
-        private Task WoteAsync(DiscordMessage message)
-        {
-            message.CreateReactionAsync(DiscordEmoji.FromName(Client, ":white_check_mark:"));
-            Delay();
-            message.CreateReactionAsync(DiscordEmoji.FromName(Client, ":x:"));
-            Delay();
-            message.CreateReactionAsync(DiscordEmoji.FromGuildEmote(Client, 614346797141458974));
-
-            return Task.CompletedTask;
-        }
-
-        private bool isAdmin(DiscordMember member)
-        {
-            IEnumerable<DiscordRole> roles = member.Roles;
-            foreach (DiscordRole rol in roles)
-            {
-                if (rol.Permissions.HasPermission(Permissions.Administrator))
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-        private bool isAdmin(DiscordUser user)
-        {                               //heh
-            return isAdmin((DiscordMember)user);
-        }
-
+        #region main methods
         public async Task<Task> sendWOTDAsync()
         {
             WordOfTheDay TodaysWOTD = Logic.GetXMLWOTD();
@@ -345,6 +321,16 @@ namespace WordOfTheDay
             return Task.CompletedTask;
         }
 
+        private Task WoteAsync(DiscordMessage message)
+        {
+            message.CreateReactionAsync(DiscordEmoji.FromName(Client, ":white_check_mark:"));
+            Delay();
+            message.CreateReactionAsync(DiscordEmoji.FromName(Client, ":x:"));
+            Delay();
+            message.CreateReactionAsync(DiscordEmoji.FromGuildEmote(Client, 614346797141458974));
+
+            return Task.CompletedTask;
+        }
         private void CheckPencil(DiscordMember member)
         {
             bool endsOnPencil = member.DisplayName.EndsWith(DiscordEmoji.FromName(Client, ":pencil:"));
@@ -384,7 +370,6 @@ namespace WordOfTheDay
             }
         }
 
-
         /// <summary>
         /// Envia una palabra del dia a la hora y minuto estimados (CEST)
         /// </summary>
@@ -421,10 +406,74 @@ namespace WordOfTheDay
             }
         }
 
+        #endregion
+
+        #region helper methods
         public void Delay(int delay = 650)
         {
             System.Threading.Thread.Sleep(delay);
         }
+        private DiscordEmbed getVersionEmbed()
+        {
+            DiscordEmbedBuilder embedBuilder = new DiscordEmbedBuilder();
+            embedBuilder.WithThumbnailUrl("https://cdn.discordapp.com/attachments/477632242190123027/603763546836303899/dummy.png");
+            embedBuilder.WithFooter("Using DSharpPlus", "https://dsharpplus.github.io/logo.png");
+            embedBuilder.WithTitle($"Word of the Day - v.{version}");
+            embedBuilder.AddField("Version Name", $"{internalname}");
+            embedBuilder.AddField("Source Code", "See the source code at: https://github.com/Yoshi662/WordOfTheDay");
+            embedBuilder.AddField("DSharpPlus", $"Version: {Client.VersionString}");
+            embedBuilder.WithColor(new DiscordColor("#970045"));
+            return embedBuilder.Build();
+        }
+
+        private string generateHelp(DiscordMember member)
+        {
+            bool admin = isAdmin(member);
+
+            //ESP
+            String salida = ">>> " + DiscordEmoji.FromName(Client, ":flag_es:") +
+            "\n-Help: Muestra este texto de ayuda" +
+            "\n-Ping: Muestra la latencia del server" +
+            "\n-Roles: Recuerda a los usuarios que deben de ponerse los roles" +
+            "\n-Wote: Inicia una votacion" +
+            "\n-Version: Muestra la version del bot";
+            if (admin) salida += "\n***Solo para administradores***" +
+                    "\n-SendWOTD: Envia una nueva Palabra del dia" +
+            "\n-CheckPencils: Checkea todos los usuarios, y pone o quita el emoji :pencil: segun tenga o no el rol de `Correct Me`" +
+            "\n-IsBlocked (DiscordUserID): Comprueba si el usuario con el id suministrado ha bloqueado al bot";
+            //ENG
+            salida += "\n" + DiscordEmoji.FromName(Client, ":flag_gb:") +
+            "\n-Help: Shows this help text" +
+            "\n-Ping: Shows the server latency" +
+            "\n-roles: reminds users to set up their roles" +
+            "\n-Wote: Starts a vote" +
+            "\n-Version: Shows the current version";
+            if (admin) salida += "\n***Admin only***" +
+                    "\n-SendWOTD: Sends a new Word of the day" +
+            "\n-CheckPencils: Checks all users and gives or removes the :pencil: emoji depending if the user has the `Correct Me` role" +
+            "\n-IsBlocked (DiscordUserID): Checks whether the user with the supplied id has blocked the bot";
+            if (member.Id == creator.Id) salida += "\n **-gimmiadmin | -dletadmin**";
+
+            return salida;
+        }
+
+        private bool isAdmin(DiscordMember member)
+        {
+            IEnumerable<DiscordRole> roles = member.Roles;
+            foreach (DiscordRole rol in roles)
+            {
+                if (rol.Permissions.HasPermission(Permissions.Administrator))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+        private bool isAdmin(DiscordUser user)
+        {                               //heh
+            return isAdmin((DiscordMember)user);
+        }
+        #endregion
 
         public struct ConfigJson
         {
