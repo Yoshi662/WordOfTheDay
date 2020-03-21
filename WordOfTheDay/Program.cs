@@ -1,15 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using DSharpPlus;
-using DSharpPlus.CommandsNext;
-using DSharpPlus.CommandsNext.Exceptions;
+﻿using DSharpPlus;
 using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
 using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace WordOfTheDay
 {
@@ -100,7 +99,6 @@ namespace WordOfTheDay
             Thread WOTD = new Thread(() => SetUpTimer(14, 00));
             WOTD.Start();
 
-
             await Task.Delay(-1);
         }
 
@@ -152,7 +150,7 @@ namespace WordOfTheDay
                 e.Message.ChannelId == suggestions.Id ||
                 e.Message.ChannelId == adminSuggestions.Id)
             {
-                await WoteAsync(e.Message);
+                await WoteAsync(e.Message, true);
             }
 
             if (!mensaje.StartsWith("-")) return Task.CompletedTask; //OPTIMIZAAAAAAR    
@@ -263,6 +261,25 @@ namespace WordOfTheDay
                 await member.RevokeRoleAsync(admin);
                 return Task.CompletedTask;
             }
+
+            if (mensaje.StartsWith("-restart") && isAdmin(e.Author))
+            {
+                DiscordMessage verificacion = await e.Channel.SendMessageAsync(EasyDualLanguageFormatting("¿Estas seguro?", "Are you sure?"));
+                bool confirmacion = await verificarAsync(verificacion, e.Author, 15);
+                if (confirmacion)
+                {
+                    DiscordMessage respuesta = await e.Channel.SendMessageAsync(EasyDualLanguageFormatting("Reiniciando Bot, por favor espere", "Restarting Bot, please wait"));
+                    Delay(1500);
+                    await e.Message.DeleteAsync();
+                    await verificacion.DeleteAsync();
+                    await respuesta.DeleteAsync();
+                    Environment.Exit(0);
+                } else
+                {
+                    await e.Message.DeleteAsync();
+                    await verificacion.DeleteAsync();
+                }
+            }
             //END OF IF WALL
             return Task.CompletedTask;
         }
@@ -276,7 +293,6 @@ namespace WordOfTheDay
         private Task Client_GuildAvailable(GuildCreateEventArgs e)
         {
             e.Client.DebugLogger.LogMessage(LogLevel.Info, "WordOfTheDay", $"Guild available: {e.Guild.Name}", DateTime.Now);
-
             return Task.CompletedTask;
         }
 
@@ -321,14 +337,16 @@ namespace WordOfTheDay
             return Task.CompletedTask;
         }
 
-        private Task WoteAsync(DiscordMessage message)
+        private Task WoteAsync(DiscordMessage message, bool dunno = false)
         {
             message.CreateReactionAsync(DiscordEmoji.FromName(Client, ":white_check_mark:"));
             Delay();
             message.CreateReactionAsync(DiscordEmoji.FromName(Client, ":x:"));
-            Delay();
-            message.CreateReactionAsync(DiscordEmoji.FromGuildEmote(Client, 614346797141458974));
-
+            if (dunno)
+            {
+                Delay();
+                message.CreateReactionAsync(DiscordEmoji.FromGuildEmote(Client, 614346797141458974));
+            }
             return Task.CompletedTask;
         }
         private void CheckPencil(DiscordMember member)
@@ -472,6 +490,26 @@ namespace WordOfTheDay
         private bool isAdmin(DiscordUser user)
         {                               //heh
             return isAdmin((DiscordMember)user);
+        }
+
+        private async Task<bool> verificarAsync(DiscordMessage mensaje, DiscordUser autor, int time = 30)
+        {
+            await WoteAsync(mensaje, false);
+            Delay(1000);
+            for (int i = 0; i < time; i++)
+            {
+                IReadOnlyList<DiscordUser> reaccionesOK = await mensaje.GetReactionsAsync(DiscordEmoji.FromName(Client, ":white_check_mark:"));
+                IReadOnlyList<DiscordUser> reaccionesNOPE = await mensaje.GetReactionsAsync(DiscordEmoji.FromName(Client, ":x:"));
+                if (reaccionesOK.Contains(autor)) return true;
+                if (reaccionesNOPE.Contains(autor)) return false;
+                Delay(1000);
+            }
+            return false;
+        }
+
+        private string EasyDualLanguageFormatting(string EScontent, string ENcontent)
+        {
+            return $":flag_es: {EScontent}\n:flag_gb: {ENcontent}";
         }
         #endregion
 
