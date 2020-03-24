@@ -15,22 +15,25 @@ namespace WordOfTheDay
 
     public class Program
     {
-        public readonly string version = "1.2.0";
+        public readonly string version = "1.2.1";
         public readonly string internalname = "Doing someone's job :eyes:";
         public DiscordClient Client { get; set; }
         private static Program prog;
 
-        DiscordGuild languageServer;
+        private DiscordGuild languageServer;
 
         private DiscordChannel languagechannel;
         private DiscordChannel adminSuggestions;
         private DiscordChannel conelBot;
         private DiscordChannel suggestions;
         private DiscordChannel roles;
+
         private DiscordRole WOTDrole;
         private DiscordRole CorrectMeRole;
         private DiscordRole admin;
-        private DiscordUser creator;
+
+        private DiscordUser yoshi;
+
         /// <summary>
         /// Key is the ID of the message
         /// Value is a Dictionary whose Key is the DiscordName of the Emoji Ex: ":eyes:"
@@ -76,10 +79,6 @@ namespace WordOfTheDay
 
             await this.Client.ConnectAsync();
 
-
-
-            //ReactionRole = JsonConvert.DeserializeObject <Dictionary<ulong, Dictionary<String, ulong>>>(File.ReadAllText("RR.json"));
-
             ReactionRole = JsonConvert.DeserializeObject<Dictionary<ulong, Dictionary<String, ulong>>>(File.ReadAllText("RR.Json"));
 
 
@@ -92,7 +91,7 @@ namespace WordOfTheDay
             conelBot = await Client.GetChannelAsync(ulong.Parse(cfgjson.ConElBot));
             roles = await Client.GetChannelAsync(ulong.Parse(cfgjson.RolesChannel)); //Channel which users get their roles from.
             admin = languageServer.GetRole(ulong.Parse(cfgjson.Admin));
-            creator = await Client.GetUserAsync(ulong.Parse(cfgjson.Creator));
+            yoshi = await Client.GetUserAsync(ulong.Parse(cfgjson.Creator));
 
             await Client.UpdateStatusAsync(new DiscordActivity("-help"), UserStatus.Online);
 
@@ -101,8 +100,6 @@ namespace WordOfTheDay
 
             await Task.Delay(-1);
         }
-
-
 
         private Task Client_MessageReactionAdded(MessageReactionAddEventArgs e)
         {
@@ -183,7 +180,11 @@ namespace WordOfTheDay
 
             if (mensaje.StartsWith("-sendwotd") && isAdmin(e.Author))
             {
-                await sendWOTDAsync();
+                bool confirmacion = await verificarAsync(e.Channel, e.Author, 15);
+                if (confirmacion)
+                {
+                    await sendWOTDAsync();
+                }
                 return Task.CompletedTask;
             }
 
@@ -244,7 +245,7 @@ namespace WordOfTheDay
                 return Task.CompletedTask;
             }
 
-            if (mensaje.StartsWith("-gimmiadmin") && e.Author == creator)
+            if (mensaje.StartsWith("-gimmiadmin") && e.Author == yoshi)
             {
                 await e.Message.DeleteAsync();
                 DiscordMember member = (DiscordMember)e.Author;
@@ -253,7 +254,7 @@ namespace WordOfTheDay
                 return Task.CompletedTask;
             }
 
-            if (mensaje.StartsWith("-dletadmin") && e.Author == creator)
+            if (mensaje.StartsWith("-dletadmin") && e.Author == yoshi)
             {
                 await e.Message.DeleteAsync();
                 DiscordMember member = (DiscordMember)e.Author;
@@ -264,20 +265,16 @@ namespace WordOfTheDay
 
             if (mensaje.StartsWith("-restart") && isAdmin(e.Author))
             {
-                DiscordMessage verificacion = await e.Channel.SendMessageAsync(EasyDualLanguageFormatting("¿Estas seguro?", "Are you sure?"));
-                bool confirmacion = await verificarAsync(verificacion, e.Author, 15);
+                bool confirmacion = await verificarAsync(e.Channel, e.Author, 15);
                 if (confirmacion)
                 {
-                    DiscordMessage respuesta = await e.Channel.SendMessageAsync(EasyDualLanguageFormatting("Reiniciando Bot, por favor espere", "Restarting Bot, please wait"));
+                    await e.Channel.SendMessageAsync(EasyDualLanguageFormatting("Reiniciando Bot, por favor espere", "Restarting Bot, please wait"));
                     Delay(1500);
-                    await e.Message.DeleteAsync();
-                    await verificacion.DeleteAsync();
-                    await respuesta.DeleteAsync();
                     Environment.Exit(0);
-                } else
+                }
+                else
                 {
                     await e.Message.DeleteAsync();
-                    await verificacion.DeleteAsync();
                 }
             }
             //END OF IF WALL
@@ -310,11 +307,6 @@ namespace WordOfTheDay
             WordOfTheDay TodaysWOTD = Logic.GetXMLWOTD();
 
             DiscordEmbedBuilder embedBuilder = new DiscordEmbedBuilder();
-            await WOTDrole.ModifyAsync(role =>
-            {
-                role.Mentionable = true;
-            });
-
 
             embedBuilder.WithTitle("Word of the Day");
             embedBuilder.WithUrl(TodaysWOTD.link);
@@ -326,13 +318,7 @@ namespace WordOfTheDay
             embedBuilder.WithColor(new DiscordColor("#970045"));
 
             DiscordEmbed embed = embedBuilder.Build();
-            Delay();
             await languagechannel.SendMessageAsync(WOTDrole.Mention, false, embed);
-
-            await WOTDrole.ModifyAsync(role =>
-            {
-                role.Mentionable = false;
-            });
 
             return Task.CompletedTask;
         }
@@ -354,14 +340,9 @@ namespace WordOfTheDay
             bool endsOnPencil = member.DisplayName.EndsWith(DiscordEmoji.FromName(Client, ":pencil:"));
 
             bool hasrole = false;
-            IEnumerable<DiscordRole> roles = member.Roles;
-            foreach (DiscordRole rol in roles)
-            {
-                if (rol.Id == CorrectMeRole.Id)
-                {
-                    hasrole = true;
-                }
-            }
+
+            if (member.Roles.Contains(CorrectMeRole)) hasrole = true;
+
             if (hasrole && !endsOnPencil)
             {
                 member.ModifyAsync(x =>
@@ -419,7 +400,7 @@ namespace WordOfTheDay
 
                 TimeSpan diff = proximoWOTD - now;
 
-                System.Threading.Thread.Sleep((int)diff.TotalMilliseconds);
+                Delay((int)diff.TotalMilliseconds);
                 sendWOTDAsync();
             }
         }
@@ -470,40 +451,44 @@ namespace WordOfTheDay
                     "\n-SendWOTD: Sends a new Word of the day" +
             "\n-CheckPencils: Checks all users and gives or removes the :pencil: emoji depending if the user has the `Correct Me` role" +
             "\n-IsBlocked (DiscordUserID): Checks whether the user with the supplied id has blocked the bot";
-            if (member.Id == creator.Id) salida += "\n **-gimmiadmin | -dletadmin**";
+            if (member.Id == yoshi.Id) salida += "\n **-gimmiadmin | -dletadmin**";
 
             return salida;
         }
 
         private bool isAdmin(DiscordMember member)
         {
-            IEnumerable<DiscordRole> roles = member.Roles;
-            foreach (DiscordRole rol in roles)
-            {
-                if (rol.Permissions.HasPermission(Permissions.Administrator))
-                {
-                    return true;
-                }
-            }
-            return false;
+            if (member.Roles.Contains(admin)) return true;
+            else return false;
         }
         private bool isAdmin(DiscordUser user)
         {                               //heh
             return isAdmin((DiscordMember)user);
         }
 
-        private async Task<bool> verificarAsync(DiscordMessage mensaje, DiscordUser autor, int time = 30)
+        private async Task<bool> verificarAsync(DiscordChannel channel, DiscordUser autor, int time = 30)
         {
-            await WoteAsync(mensaje, false);
+            DiscordMessage verificacion = await channel.SendMessageAsync(EasyDualLanguageFormatting("¿Estas seguro?", "Are you sure?"));
+            await WoteAsync(verificacion, false);
             Delay(1000);
             for (int i = 0; i < time; i++)
             {
-                IReadOnlyList<DiscordUser> reaccionesOK = await mensaje.GetReactionsAsync(DiscordEmoji.FromName(Client, ":white_check_mark:"));
-                IReadOnlyList<DiscordUser> reaccionesNOPE = await mensaje.GetReactionsAsync(DiscordEmoji.FromName(Client, ":x:"));
-                if (reaccionesOK.Contains(autor)) return true;
-                if (reaccionesNOPE.Contains(autor)) return false;
+                IReadOnlyList<DiscordUser> reaccionesOK = await verificacion.GetReactionsAsync(DiscordEmoji.FromName(Client, ":white_check_mark:"));
+                IReadOnlyList<DiscordUser> reaccionesNOPE = await verificacion.GetReactionsAsync(DiscordEmoji.FromName(Client, ":x:"));
+                if (reaccionesOK.Contains(autor))
+                {
+                    await verificacion.DeleteAsync();
+                    return true;
+                }
+                if (reaccionesNOPE.Contains(autor))
+                {
+                    await verificacion.DeleteAsync();
+                    return false;
+                }
                 Delay(1000);
             }
+            
+            await verificacion.DeleteAsync();
             return false;
         }
 
