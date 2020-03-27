@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.NetworkInformation;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,8 +16,8 @@ namespace WordOfTheDay
 
     public class Program
     {
-        public readonly string version = "1.2.1";
-        public readonly string internalname = "Doing someone's job :eyes:";
+        public readonly string version = "1.2.2";
+        public readonly string internalname = "Network's Unstable";
         public DiscordClient Client { get; set; }
         private static Program prog;
 
@@ -296,6 +297,12 @@ namespace WordOfTheDay
         private Task Client_ClientError(ClientErrorEventArgs e)
         {
             e.Client.DebugLogger.LogMessage(LogLevel.Error, "WordOfTheDay", $"Exception occured: {e.Exception.GetType()}: {e.Exception.Message}", DateTime.Now);
+
+            while (!HasInternetConnection())
+            {
+                e.Client.DebugLogger.LogMessage(LogLevel.Error, "WordOfTheDay", $"Can't connect to the Discord Servers. Reconnecting", DateTime.Now);
+                Delay(5000);
+            }
             prog.RunBotAsync().GetAwaiter().GetResult();
             return Task.CompletedTask;
         }
@@ -496,6 +503,14 @@ namespace WordOfTheDay
         {
             return $":flag_es: {EScontent}\n:flag_gb: {ENcontent}";
         }
+
+        private bool HasInternetConnection()
+        {
+            Ping sender = new Ping();
+            PingReply respuesta = sender.Send("discordapp.com");
+            return respuesta.Status.HasFlag(IPStatus.Success);
+        }
+
         #endregion
 
         public struct ConfigJson
