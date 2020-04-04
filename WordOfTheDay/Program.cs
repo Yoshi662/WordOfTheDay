@@ -16,8 +16,8 @@ namespace WordOfTheDay
 
     public class Program
     {
-        public readonly string version = "1.2.2";
-        public readonly string internalname = "Network's Unstable";
+        public readonly string version = "1.3.0";
+        public readonly string internalname = "Discord is trolling me";
         public DiscordClient Client { get; set; }
         private static Program prog;
 
