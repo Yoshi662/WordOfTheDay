@@ -100,7 +100,7 @@ namespace WordOfTheDay
 
             await Client.UpdateStatusAsync(new DiscordActivity("-help"), UserStatus.Online);
 
-            if(!(lastException is null) && (lastExceptionDatetime != DateTime.MinValue))
+            if (!(lastException is null) && (lastExceptionDatetime != DateTime.MinValue))
             {
                 await botupdates.SendMessageAsync(lastExceptionDatetime.ToString("F"), false, GenerateErrorEmbed(lastException));
             }
@@ -258,6 +258,23 @@ namespace WordOfTheDay
                 {
                     await e.Message.DeleteAsync();
                 }
+            }
+
+            if (mensaje.StartsWith("-removereactions") && isAdmin(e.Author))
+            {
+                ulong channelid = 0;
+                ulong mensajeid = 0;
+                if (ulong.TryParse(mensaje.Split(' ')[1], out channelid) && ulong.TryParse(mensaje.Split(' ')[2], out mensajeid))
+                {
+                    DiscordMessage DisMensaje = await languageServer.GetChannel(channelid).GetMessageAsync(mensajeid);
+                    await DisMensaje.DeleteAllReactionsAsync();
+                    await e.Channel.SendMessageAsync(EasyDualLanguageFormatting("Se han borrado las reacciones", "The reactions have been removed"));
+                }
+                else
+                {
+                    await e.Channel.SendMessageAsync(EasyDualLanguageFormatting("No se ha podido encontrar el mensaje, por favor comprueba las IDs", "The message couldn't be found. Please check the IDs"));
+                }
+
             }
             //END OF IF WALL
             return Task.CompletedTask;
@@ -455,7 +472,7 @@ namespace WordOfTheDay
             if (exception.HelpLink != null) builder.WithUrl(exception.HelpLink);
             if (exception.StackTrace != null) builder.AddField("StackTrace", exception.StackTrace);
             if (exception.Message != null) builder.AddField("Mensaje", exception.Message);
-            if(exception.InnerException != null)
+            if (exception.InnerException != null)
             {
                 builder.AddField("**INNER EXCEPTION**", "**——————————————————————————————————————**");
                 if (exception.InnerException.HelpLink != null) builder.WithUrl(exception.InnerException.HelpLink);
@@ -478,6 +495,7 @@ namespace WordOfTheDay
             if (admin) salida += "\n***Solo para administradores***" +
                     "\n-SendWOTD: Envia una nueva Palabra del dia" +
             "\n-CheckPencils: Checkea todos los usuarios, y pone o quita el emoji :pencil: segun tenga o no el rol de `Correct Me`" +
+            "\n-RemoveReactions <Channel ID> <Message ID>: Borra todas las reacciones de un mensaje" +
             "\n-IsBlocked (DiscordUserID): Comprueba si el usuario con el id suministrado ha bloqueado al bot";
             //ENG
             salida += "\n" + DiscordEmoji.FromName(Client, ":flag_gb:") +
@@ -489,6 +507,7 @@ namespace WordOfTheDay
             if (admin) salida += "\n***Admin only***" +
                     "\n-SendWOTD: Sends a new Word of the day" +
             "\n-CheckPencils: Checks all users and gives or removes the :pencil: emoji depending if the user has the `Correct Me` role" +
+            "\n-RemoveReactions <Channel ID> <Message ID>: Removes all the reactions from a message" +
             "\n-IsBlocked (DiscordUserID): Checks whether the user with the supplied id has blocked the bot";
             if (member.Id == yoshi.Id) salida += "\n **-gimmiadmin | -dletadmin**";
 
@@ -525,7 +544,7 @@ namespace WordOfTheDay
                 }
                 Delay(1000);
             }
-            
+
             await verificacion.DeleteAsync();
             return false;
         }
