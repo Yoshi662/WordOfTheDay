@@ -16,7 +16,7 @@ namespace WordOfTheDay
 
     public class Program
     {
-        public readonly string version = "1.3.1";
+        public readonly string version = "1.3.3";
         public readonly string internalname = "Better Exceptions";
         public DiscordClient Client { get; set; }
         private static Program prog;
@@ -214,7 +214,6 @@ namespace WordOfTheDay
                 }
                 catch (Exception ex)
                 {
-                    throw ex;
                     if (ex is ArgumentNullException || ex is FormatException || ex is OverflowException)
                     {
                         await senderMember.SendMessageAsync("Excepcion no controlada. Es posible que no hayas puesto bien el ID");
