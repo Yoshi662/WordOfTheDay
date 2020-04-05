@@ -16,8 +16,8 @@ namespace WordOfTheDay
 
     public class Program
     {
-        public readonly string version = "1.3.0";
-        public readonly string internalname = "Discord is trolling me";
+        public readonly string version = "1.3.1";
+        public readonly string internalname = "Better Exceptions";
         public DiscordClient Client { get; set; }
         private static Program prog;
 
@@ -28,12 +28,16 @@ namespace WordOfTheDay
         private DiscordChannel conelBot;
         private DiscordChannel suggestions;
         private DiscordChannel roles;
+        private DiscordChannel botupdates;
 
         private DiscordRole WOTDrole;
         private DiscordRole CorrectMeRole;
         private DiscordRole admin;
 
         private DiscordUser yoshi;
+
+        private Exception lastException;
+        private DateTime lastExceptionDatetime;
 
         /// <summary>
         /// Key is the ID of the message
@@ -82,7 +86,6 @@ namespace WordOfTheDay
 
             ReactionRole = JsonConvert.DeserializeObject<Dictionary<ulong, Dictionary<String, ulong>>>(File.ReadAllText("RR.Json"));
 
-
             languagechannel = await Client.GetChannelAsync(ulong.Parse(cfgjson.WOTDChannel)); //Channel which recieves updates
             languageServer = await Client.GetGuildAsync(ulong.Parse(cfgjson.LanguageServer)); //Server
             WOTDrole = languageServer.GetRole(ulong.Parse(cfgjson.WOTDRole)); //WOTD role
@@ -91,10 +94,16 @@ namespace WordOfTheDay
             adminSuggestions = await Client.GetChannelAsync(ulong.Parse(cfgjson.AdminSuggestions));
             conelBot = await Client.GetChannelAsync(ulong.Parse(cfgjson.ConElBot));
             roles = await Client.GetChannelAsync(ulong.Parse(cfgjson.RolesChannel)); //Channel which users get their roles from.
+            botupdates = await Client.GetChannelAsync(ulong.Parse(cfgjson.BotUpdates));
             admin = languageServer.GetRole(ulong.Parse(cfgjson.Admin));
-            yoshi = await Client.GetUserAsync(ulong.Parse(cfgjson.Creator));
+            yoshi = await Client.GetUserAsync(ulong.Parse(cfgjson.Yoshi));
 
             await Client.UpdateStatusAsync(new DiscordActivity("-help"), UserStatus.Online);
+
+            if(!(lastException is null) && (lastExceptionDatetime != DateTime.MinValue))
+            {
+                await botupdates.SendMessageAsync(lastExceptionDatetime.ToString("F"), false, GenerateErrorEmbed(lastException));
+            }
 
             Thread WOTD = new Thread(() => SetUpTimer(14, 00));
             WOTD.Start();
@@ -102,33 +111,6 @@ namespace WordOfTheDay
             await Task.Delay(-1);
         }
 
-        private Task Client_MessageReactionAdded(MessageReactionAddEventArgs e)
-        {
-            if (e.Channel != roles) { return Task.CompletedTask; }
-            String emojiname = e.Emoji.GetDiscordName();
-
-            if (ReactionRole.ContainsKey(e.Message.Id))
-            {
-                Dictionary<string, ulong> auxDict = ReactionRole[e.Message.Id];
-                DiscordMember sender = (DiscordMember)e.User;
-                sender.GrantRoleAsync(languageServer.GetRole(auxDict[emojiname]));
-            }
-            return Task.CompletedTask;
-        }
-
-        private Task Client_MessageReactionRemoved(MessageReactionRemoveEventArgs e)
-        {
-            if (e.Channel != roles) { return Task.CompletedTask; }
-            String emojiname = e.Emoji.GetDiscordName();
-
-            if (ReactionRole.ContainsKey(e.Message.Id))
-            {
-                Dictionary<string, ulong> auxDict = ReactionRole[e.Message.Id];
-                DiscordMember sender = (DiscordMember)e.User;
-                sender.RevokeRoleAsync(languageServer.GetRole(auxDict[emojiname]));
-            }
-            return Task.CompletedTask;
-        }
         #endregion
 
         #region events
@@ -232,7 +214,7 @@ namespace WordOfTheDay
                 }
                 catch (Exception ex)
                 {
-
+                    throw ex;
                     if (ex is ArgumentNullException || ex is FormatException || ex is OverflowException)
                     {
                         await senderMember.SendMessageAsync("Excepcion no controlada. Es posible que no hayas puesto bien el ID");
@@ -297,6 +279,8 @@ namespace WordOfTheDay
         private Task Client_ClientError(ClientErrorEventArgs e)
         {
             e.Client.DebugLogger.LogMessage(LogLevel.Error, "WordOfTheDay", $"Exception occured: {e.Exception.GetType()}: {e.Exception.Message}", DateTime.Now);
+            lastException = e.Exception;
+            lastExceptionDatetime = DateTime.Now;
 
             while (!HasInternetConnection())
             {
@@ -304,6 +288,34 @@ namespace WordOfTheDay
                 Delay(5000);
             }
             prog.RunBotAsync().GetAwaiter().GetResult();
+            return Task.CompletedTask;
+        }
+
+        private Task Client_MessageReactionAdded(MessageReactionAddEventArgs e)
+        {
+            if (e.Channel != roles) { return Task.CompletedTask; }
+            String emojiname = e.Emoji.GetDiscordName();
+
+            if (ReactionRole.ContainsKey(e.Message.Id))
+            {
+                Dictionary<string, ulong> auxDict = ReactionRole[e.Message.Id];
+                DiscordMember sender = (DiscordMember)e.User;
+                sender.GrantRoleAsync(languageServer.GetRole(auxDict[emojiname]));
+            }
+            return Task.CompletedTask;
+        }
+
+        private Task Client_MessageReactionRemoved(MessageReactionRemoveEventArgs e)
+        {
+            if (e.Channel != roles) { return Task.CompletedTask; }
+            String emojiname = e.Emoji.GetDiscordName();
+
+            if (ReactionRole.ContainsKey(e.Message.Id))
+            {
+                Dictionary<string, ulong> auxDict = ReactionRole[e.Message.Id];
+                DiscordMember sender = (DiscordMember)e.User;
+                sender.RevokeRoleAsync(languageServer.GetRole(auxDict[emojiname]));
+            }
             return Task.CompletedTask;
         }
         #endregion
@@ -431,7 +443,28 @@ namespace WordOfTheDay
             embedBuilder.WithColor(new DiscordColor("#970045"));
             return embedBuilder.Build();
         }
-
+        private DiscordEmbed GenerateErrorEmbed(Exception exception)
+        {
+            DiscordEmbedBuilder builder = new DiscordEmbedBuilder();
+            builder
+                .WithTitle("Algo Paso")
+                .WithColor(new DiscordColor("#FF0000"))
+                .WithFooter(
+                            "A Yoshi's Bot",
+                            "https://i.imgur.com/rT9YocG.jpg"
+                            );
+            if (exception.HelpLink != null) builder.WithUrl(exception.HelpLink);
+            if (exception.StackTrace != null) builder.AddField("StackTrace", exception.StackTrace);
+            if (exception.Message != null) builder.AddField("Mensaje", exception.Message);
+            if(exception.InnerException != null)
+            {
+                builder.AddField("**INNER EXCEPTION**", "**——————————————————————————————————————**");
+                if (exception.InnerException.HelpLink != null) builder.WithUrl(exception.InnerException.HelpLink);
+                if (exception.InnerException.StackTrace != null) builder.AddField("StackTrace", exception.InnerException.StackTrace);
+                if (exception.InnerException.Message != null) builder.AddField("Mensaje", exception.InnerException.Message);
+            }
+            return builder.Build();
+        }
         private string generateHelp(DiscordMember member)
         {
             bool admin = isAdmin(member);
@@ -462,7 +495,6 @@ namespace WordOfTheDay
 
             return salida;
         }
-
         private bool isAdmin(DiscordMember member)
         {
             if (member.Roles.Contains(admin)) return true;
@@ -539,6 +571,9 @@ namespace WordOfTheDay
             [JsonProperty("ConElBot")]
             public string ConElBot { get; private set; }
 
+            [JsonProperty("BotUpdates")]
+            public string BotUpdates { get; private set; }
+
             [JsonProperty("RolesChannel")]
             public string RolesChannel { get; private set; }
 
@@ -546,7 +581,7 @@ namespace WordOfTheDay
             public string Admin { get; private set; }
 
             [JsonProperty("Creator")]
-            public string Creator { get; private set; }
+            public string Yoshi { get; private set; }
         }
     }
 }
