@@ -16,8 +16,8 @@ namespace WordOfTheDay
 
     public class Program
     {
-        public readonly string version = "1.3.3";
-        public readonly string internalname = "Better Exceptions";
+        public readonly string version = "1.3.4";
+        public readonly string internalname = "Better Exceptions(r)Plus + User Counter";
         public DiscordClient Client { get; set; }
         private static Program prog;
 
@@ -29,6 +29,7 @@ namespace WordOfTheDay
         private DiscordChannel suggestions;
         private DiscordChannel roles;
         private DiscordChannel botupdates;
+        private DiscordChannel usercount;
 
         private DiscordRole WOTDrole;
         private DiscordRole CorrectMeRole;
@@ -82,6 +83,8 @@ namespace WordOfTheDay
             this.Client.MessageReactionAdded += Client_MessageReactionAdded;
             this.Client.MessageReactionRemoved += Client_MessageReactionRemoved;
 
+
+
             await this.Client.ConnectAsync();
 
             ReactionRole = JsonConvert.DeserializeObject<Dictionary<ulong, Dictionary<String, ulong>>>(File.ReadAllText("RR.Json"));
@@ -94,6 +97,7 @@ namespace WordOfTheDay
             adminSuggestions = await Client.GetChannelAsync(ulong.Parse(cfgjson.AdminSuggestions));
             conelBot = await Client.GetChannelAsync(ulong.Parse(cfgjson.ConElBot));
             roles = await Client.GetChannelAsync(ulong.Parse(cfgjson.RolesChannel)); //Channel which users get their roles from.
+            usercount = await Client.GetChannelAsync(ulong.Parse(cfgjson.UserCountChannel));
             botupdates = await Client.GetChannelAsync(ulong.Parse(cfgjson.BotUpdates));
             admin = languageServer.GetRole(ulong.Parse(cfgjson.Admin));
             yoshi = await Client.GetUserAsync(ulong.Parse(cfgjson.Yoshi));
@@ -102,7 +106,16 @@ namespace WordOfTheDay
 
             if (!(lastException is null) && (lastExceptionDatetime != DateTime.MinValue))
             {
-                await botupdates.SendMessageAsync(lastExceptionDatetime.ToString("F"), false, GenerateErrorEmbed(lastException));
+                //Programar sin dormir es !bien
+                await botupdates.SendFileAsync(
+                    lastExceptionDatetime.ToString("yyyy-mm-dd HH_mm_ss") + "WOTD_EX_StackTrace.txt",
+                    new MemoryStream(Encoding.UTF8.GetBytes(lastException.InnerException.StackTrace)),
+                        "`—————————————————————————————————————————————————————————`\n**A L G O P A S O**  -  " +
+                        lastExceptionDatetime.ToString("yyyy-mm-dd HH_mm_ss"),
+                    false,
+                    GenerateErrorEmbed()
+                    );
+                Delay();
             }
 
             Thread WOTD = new Thread(() => SetUpTimer(14, 00));
@@ -111,11 +124,13 @@ namespace WordOfTheDay
             await Task.Delay(-1);
         }
 
+
         #endregion
 
         #region events
         private Task Client_GuildMemberUpdated(GuildMemberUpdateEventArgs e)
         {
+            UpdateUserCountChannel();
             CheckPencil(e.Member);
             return Task.CompletedTask;
         }
@@ -436,9 +451,22 @@ namespace WordOfTheDay
                 TimeSpan diff = proximoWOTD - now;
 
                 Delay((int)diff.TotalMilliseconds);
+                UpdateUserCountChannel();
                 sendWOTDAsync();
             }
         }
+
+        private void UpdateUserCountChannel()
+        {
+            if (usercount.Name != "User Count: " + languageServer.MemberCount)
+            {
+                usercount.ModifyAsync(ch =>
+                {
+                    ch.Name = "User Count: " + languageServer.MemberCount;
+                });
+            }
+        }
+
 
         #endregion
 
@@ -459,7 +487,7 @@ namespace WordOfTheDay
             embedBuilder.WithColor(new DiscordColor("#970045"));
             return embedBuilder.Build();
         }
-        private DiscordEmbed GenerateErrorEmbed(Exception exception)
+        private DiscordEmbed GenerateErrorEmbed()
         {
             DiscordEmbedBuilder builder = new DiscordEmbedBuilder();
             builder
@@ -469,16 +497,16 @@ namespace WordOfTheDay
                             "A Yoshi's Bot",
                             "https://i.imgur.com/rT9YocG.jpg"
                             );
-            if (exception.HelpLink != null) builder.WithUrl(exception.HelpLink);
-            if (exception.StackTrace != null) builder.AddField("StackTrace", exception.StackTrace);
-            if (exception.Message != null) builder.AddField("Mensaje", exception.Message);
-            if (exception.InnerException != null)
+            if (lastException.HelpLink != null) builder.WithUrl(lastException.HelpLink);
+            if (lastException.StackTrace != null) builder.AddField("StackTrace", lastException.StackTrace);
+            if (lastException.Message != null) builder.AddField("Mensaje", lastException.Message);
+            if (lastException.InnerException != null)
             {
                 builder.AddField("**INNER EXCEPTION**", "**——————————————————————————————————————**");
-                if (exception.InnerException.HelpLink != null) builder.WithUrl(exception.InnerException.HelpLink);
-                if (exception.InnerException.StackTrace != null) builder.AddField("StackTrace", exception.InnerException.StackTrace);
-                if (exception.InnerException.Message != null) builder.AddField("Mensaje", exception.InnerException.Message);
+                if (lastException.InnerException.HelpLink != null) builder.WithUrl(lastException.InnerException.HelpLink);
+                if (lastException.InnerException.Message != null) builder.AddField("Mensaje", lastException.InnerException.Message);
             }
+            if (lastExceptionDatetime != null) { builder.WithTimestamp(lastExceptionDatetime); };
             return builder.Build();
         }
         private string generateHelp(DiscordMember member)
@@ -594,6 +622,9 @@ namespace WordOfTheDay
 
             [JsonProperty("RolesChannel")]
             public string RolesChannel { get; private set; }
+
+            [JsonProperty("UserCountChannel")]
+            public string UserCountChannel { get; private set; }
 
             [JsonProperty("Admin")]
             public string Admin { get; private set; }
