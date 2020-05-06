@@ -16,8 +16,8 @@ namespace WordOfTheDay
 
     public class Program
     {
-        public readonly string version = "1.3.4";
-        public readonly string internalname = "Better Exceptions(r)Plus + User Counter";
+        public readonly string version = "1.3.5";
+        public readonly string internalname = "BetterEmbedFormat";
         public DiscordClient Client { get; set; }
         private static Program prog;
 
@@ -363,8 +363,8 @@ namespace WordOfTheDay
             //https://imgur.com/rT9YocG
             embedBuilder.WithThumbnailUrl("https://cdn.discordapp.com/attachments/477632242190123027/603763546836303899/dummy.png");
             embedBuilder.WithFooter("A Yoshi's bot", "https://i.imgur.com/rT9YocG.jpg");
-            embedBuilder.AddField(":flag_es:", $"{TodaysWOTD.es_word}\n{TodaysWOTD.es_sentence}", true);
-            embedBuilder.AddField(":flag_gb:", $"{TodaysWOTD.en_word}\n{TodaysWOTD.en_sentence}", true);
+            embedBuilder.AddField(":flag_es: - " + TodaysWOTD.es_word, $"{TodaysWOTD.es_sentence}", true);
+            embedBuilder.AddField(":flag_gb: - " + TodaysWOTD.en_word, $"{TodaysWOTD.en_sentence}", true);
             embedBuilder.WithColor(new DiscordColor("#970045"));
 
             DiscordEmbed embed = embedBuilder.Build();
@@ -381,6 +381,7 @@ namespace WordOfTheDay
             if (dunno)
             {
                 Delay();
+
                 message.CreateReactionAsync(DiscordEmoji.FromGuildEmote(Client, 614346797141458974));
             }
             return Task.CompletedTask;
