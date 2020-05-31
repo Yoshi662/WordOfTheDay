@@ -13,11 +13,10 @@ using System.Threading.Tasks;
 
 namespace WordOfTheDay
 {
-
     public class Program
     {
-        public readonly string version = "1.3.5";
-        public readonly string internalname = "BetterEmbedFormat";
+        public readonly string version = "1.4.0";
+        public readonly string internalname = "¿Como se llamaba este bot?\nYa no me acuerdo";
         public DiscordClient Client { get; set; }
         private static Program prog;
 
@@ -29,6 +28,7 @@ namespace WordOfTheDay
         private DiscordChannel suggestions;
         private DiscordChannel roles;
         private DiscordChannel botupdates;
+        private DiscordChannel modlog;
         private DiscordChannel usercount;
 
         private DiscordRole WOTDrole;
@@ -82,6 +82,7 @@ namespace WordOfTheDay
             this.Client.GuildMemberUpdated += Client_GuildMemberUpdated;
             this.Client.MessageReactionAdded += Client_MessageReactionAdded;
             this.Client.MessageReactionRemoved += Client_MessageReactionRemoved;
+            this.Client.GuildMemberAdded += Client_GuildMemberAdded;
 
 
 
@@ -96,6 +97,7 @@ namespace WordOfTheDay
             suggestions = await Client.GetChannelAsync(ulong.Parse(cfgjson.Suggestions)); //Channel which recieves updates
             adminSuggestions = await Client.GetChannelAsync(ulong.Parse(cfgjson.AdminSuggestions));
             conelBot = await Client.GetChannelAsync(ulong.Parse(cfgjson.ConElBot));
+            modlog = await Client.GetChannelAsync(ulong.Parse(cfgjson.ModLog));
             roles = await Client.GetChannelAsync(ulong.Parse(cfgjson.RolesChannel)); //Channel which users get their roles from.
             usercount = await Client.GetChannelAsync(ulong.Parse(cfgjson.UserCountChannel));
             botupdates = await Client.GetChannelAsync(ulong.Parse(cfgjson.BotUpdates));
@@ -122,6 +124,17 @@ namespace WordOfTheDay
             WOTD.Start();
 
             await Task.Delay(-1);
+        }
+
+        private Task Client_GuildMemberAdded(GuildMemberAddEventArgs e)
+        {
+            DiscordMember miembro = e.Member;
+            modlog.SendMessageAsync(null, false, QuickEmbed($"New Member: {miembro.Username}#{miembro.Discriminator}",
+                $"Discord ID: {miembro.Id}\n" +
+                $"Fecha de creacion de cuenta: {miembro.CreationTimestamp}",
+                "#970045",
+                false),null);
+            return Task.CompletedTask;
         }
 
 
@@ -153,8 +166,8 @@ namespace WordOfTheDay
             if (mensaje.StartsWith("-roles"))
             {
                 await e.Channel.SendMessageAsync(
-                     $"{DiscordEmoji.FromName(Client, ":flag_es:")} Por favor ponte los roles adecuados en {roles.Mention}\n" +
-                     $"{DiscordEmoji.FromName(Client, ":flag_gb:")} Please set up your roles in {roles.Mention}"
+                     $"{DiscordEmoji.FromName(Client, ":flag_es:")} Por favor ponte los roles adecuados en {roles.Mention} ¡No te olvides el rol de nativo!\n" +
+                     $"{DiscordEmoji.FromName(Client, ":flag_gb:")} Please set up your roles in {roles.Mention} Don't forget the native role!"
                  );
                 return Task.CompletedTask;
             }
@@ -361,7 +374,7 @@ namespace WordOfTheDay
             embedBuilder.WithTitle("Word of the Day");
             embedBuilder.WithUrl(TodaysWOTD.link);
             //https://imgur.com/rT9YocG
-            embedBuilder.WithThumbnailUrl("https://cdn.discordapp.com/attachments/477632242190123027/603763546836303899/dummy.png");
+            embedBuilder.WithThumbnail("https://cdn.discordapp.com/attachments/477632242190123027/603763546836303899/dummy.png");
             embedBuilder.WithFooter("A Yoshi's bot", "https://i.imgur.com/rT9YocG.jpg");
             embedBuilder.AddField(":flag_es: - " + TodaysWOTD.es_word, $"{TodaysWOTD.es_sentence}", true);
             embedBuilder.AddField(":flag_gb: - " + TodaysWOTD.en_word, $"{TodaysWOTD.en_sentence}", true);
@@ -479,7 +492,7 @@ namespace WordOfTheDay
         private DiscordEmbed getVersionEmbed()
         {
             DiscordEmbedBuilder embedBuilder = new DiscordEmbedBuilder();
-            embedBuilder.WithThumbnailUrl("https://cdn.discordapp.com/attachments/477632242190123027/603763546836303899/dummy.png");
+            embedBuilder.WithThumbnail("https://cdn.discordapp.com/attachments/477632242190123027/603763546836303899/dummy.png");
             embedBuilder.WithFooter("Using DSharpPlus", "https://dsharpplus.github.io/logo.png");
             embedBuilder.WithTitle($"Word of the Day - v.{version}");
             embedBuilder.AddField("Version Name", $"{internalname}");
@@ -508,6 +521,29 @@ namespace WordOfTheDay
                 if (lastException.InnerException.Message != null) builder.AddField("Mensaje", lastException.InnerException.Message);
             }
             if (lastExceptionDatetime != null) { builder.WithTimestamp(lastExceptionDatetime); };
+            return builder.Build();
+        }
+        /// <summary>
+        /// Genera un DiscordEmbed basico
+        /// </summary>
+        /// <param name="titulo">Titulo del embed</param>
+        /// <param name="descripcion">Descripcion del embed</param>
+        /// <param name="color">Cadena Hexadecimal para el color del embed</param>
+        /// <param name="footerspam">Habilita el footerSpam "A Yoshi's bot"</param>
+        /// <returns></returns>
+        private DiscordEmbed QuickEmbed(String titulo = "", string descripcion = "", string color = "", bool footerspam = true)
+        {
+            DiscordEmbedBuilder builder = new DiscordEmbedBuilder();
+            builder.WithTitle(titulo)
+                .WithDescription(descripcion)
+                .WithColor(new DiscordColor(color));
+            if (footerspam)
+            {
+                builder.WithFooter(
+                           "A Yoshi's Bot",
+                           "https://i.imgur.com/rT9YocG.jpg"
+                           );
+            }     
             return builder.Build();
         }
         private string generateHelp(DiscordMember member)
@@ -617,6 +653,9 @@ namespace WordOfTheDay
 
             [JsonProperty("ConElBot")]
             public string ConElBot { get; private set; }
+
+            [JsonProperty("ModLog")]
+            public string ModLog { get; private set; }
 
             [JsonProperty("BotUpdates")]
             public string BotUpdates { get; private set; }
