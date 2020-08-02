@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.NetworkInformation;
+using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,8 +16,8 @@ namespace WordOfTheDay
 {
     public class Program
     {
-        public readonly string version = "1.4.0";
-        public readonly string internalname = "¿Como se llamaba este bot?\nYa no me acuerdo";
+        public readonly string version = "1.5.0";
+        public readonly string internalname = "Main Channels are main channels";
         public DiscordClient Client { get; set; }
         private static Program prog;
 
@@ -34,6 +35,7 @@ namespace WordOfTheDay
         private DiscordRole WOTDrole;
         private DiscordRole CorrectMeRole;
         private DiscordRole admin;
+        private DiscordRole onVC;
 
         private DiscordUser yoshi;
 
@@ -83,7 +85,7 @@ namespace WordOfTheDay
             this.Client.MessageReactionAdded += Client_MessageReactionAdded;
             this.Client.MessageReactionRemoved += Client_MessageReactionRemoved;
             this.Client.GuildMemberAdded += Client_GuildMemberAdded;
-
+            this.Client.VoiceStateUpdated += Client_VoiceStateUpdated;
 
 
             await this.Client.ConnectAsync();
@@ -94,6 +96,7 @@ namespace WordOfTheDay
             languageServer = await Client.GetGuildAsync(ulong.Parse(cfgjson.LanguageServer)); //Server
             WOTDrole = languageServer.GetRole(ulong.Parse(cfgjson.WOTDRole)); //WOTD role
             CorrectMeRole = languageServer.GetRole(ulong.Parse(cfgjson.CorrectMeRole)); //CorrectMe Role
+            onVC = languageServer.GetRole(ulong.Parse(cfgjson.OnVC));
             suggestions = await Client.GetChannelAsync(ulong.Parse(cfgjson.Suggestions)); //Channel which recieves updates
             adminSuggestions = await Client.GetChannelAsync(ulong.Parse(cfgjson.AdminSuggestions));
             conelBot = await Client.GetChannelAsync(ulong.Parse(cfgjson.ConElBot));
@@ -126,6 +129,29 @@ namespace WordOfTheDay
             await Task.Delay(-1);
         }
 
+        private Task Client_VoiceStateUpdated(VoiceStateUpdateEventArgs e)
+        {
+            bool isuserconnected;
+            try
+            {
+                isuserconnected = e.Channel.Users.Contains(e.User);
+            }
+            catch (NullReferenceException ex)
+            {
+                isuserconnected = false;
+            }
+            DiscordMember member = (DiscordMember)e.User;
+            if (isuserconnected)
+            {
+                member.GrantRoleAsync(onVC);
+            } else
+            {
+                member.RevokeRoleAsync(onVC);
+            }
+
+            return Task.CompletedTask;
+        }
+
         private Task Client_GuildMemberAdded(GuildMemberAddEventArgs e)
         {
             DiscordMember miembro = e.Member;
@@ -143,7 +169,6 @@ namespace WordOfTheDay
         #region events
         private Task Client_GuildMemberUpdated(GuildMemberUpdateEventArgs e)
         {
-            UpdateUserCountChannel();
             CheckPencil(e.Member);
             return Task.CompletedTask;
         }
@@ -198,6 +223,11 @@ namespace WordOfTheDay
                 }
                 return Task.CompletedTask;
             }
+            if (mensaje.StartsWith("-but"))
+            {
+                await e.Channel.SendMessageAsync("can you do this?", false, null);
+            }
+
 
             if (mensaje.StartsWith("-version"))
             {
@@ -641,6 +671,9 @@ namespace WordOfTheDay
 
             [JsonProperty("WOTDRole")]
             public string WOTDRole { get; private set; }
+
+            [JsonProperty("OnVC")]
+            public string OnVC { get; private set; }
 
             [JsonProperty("CorrectMeRole")]
             public string CorrectMeRole { get; private set; }
