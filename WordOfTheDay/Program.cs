@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.NetworkInformation;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
@@ -16,8 +17,8 @@ namespace WordOfTheDay
 {
     public class Program
     {
-        public readonly string version = "1.5.1";
-        public readonly string internalname = "I should change the name of this bot one day.";
+        public readonly string version = "1.5.2";
+        public readonly string internalname = "Manual user Updater";
         public DiscordClient Client { get; set; }
         private static Program prog;
 
@@ -112,13 +113,33 @@ namespace WordOfTheDay
             if (!(lastException is null) && (lastExceptionDatetime != DateTime.MinValue))
             {
                 //Programar sin dormir es !bien
+                DiscordEmbedBuilder builder = new DiscordEmbedBuilder();
+                builder
+                    .WithTitle("Bot Breaking Exception")
+                    .WithColor(new DiscordColor("#FF0000"))
+                    .WithFooter(
+                                "A Yoshi's Bot",
+                                "https://i.imgur.com/rT9YocG.jpg"
+                                );
+                if (lastException.HelpLink != null) builder.WithUrl(lastException.HelpLink);
+                if (lastException.StackTrace != null) builder.AddField("StackTrace", lastException.StackTrace);
+                if (lastException.Message != null) builder.AddField("Mensaje", lastException.Message);
+                if (lastException.InnerException != null)
+                {
+                    builder.AddField("**INNER EXCEPTION**", "**——————————————————————————————————————**");
+                    if (lastException.InnerException.HelpLink != null) builder.WithUrl(lastException.InnerException.HelpLink);
+                    if (lastException.InnerException.Message != null) builder.AddField("Mensaje", lastException.InnerException.Message);
+                }
+                if (lastExceptionDatetime != null) { builder.WithTimestamp(lastExceptionDatetime); };
+
+
+
                 await botupdates.SendFileAsync(
                     lastExceptionDatetime.ToString("yyyy-mm-dd HH_mm_ss") + "WOTD_EX_StackTrace.txt",
                     new MemoryStream(Encoding.UTF8.GetBytes(lastException.InnerException.StackTrace)),
-                        "`—————————————————————————————————————————————————————————`\n**A L G O P A S O**  -  " +
-                        lastExceptionDatetime.ToString("yyyy-mm-dd HH_mm_ss"),
+                        "**Bot Breaking Exception**  -  " + lastExceptionDatetime.ToString("yyyy-mm-dd HH_mm_ss") + " - " + yoshi.Mention,
                     false,
-                    GenerateErrorEmbed()
+                    builder.Build()
                     );
                 Delay();
             }
@@ -224,11 +245,6 @@ namespace WordOfTheDay
                 }
                 return Task.CompletedTask;
             }
-            if (mensaje.StartsWith("-but"))
-            {
-                await e.Channel.SendMessageAsync("can you do this?", false, null);
-            }
-
 
             if (mensaje.StartsWith("-version"))
             {
@@ -338,13 +354,61 @@ namespace WordOfTheDay
 
             if (mensaje.StartsWith("-embed") && isAdmin(e.Author))
             {
+
                 String message = e.Message.Content.Substring(6);
                 DiscordMember member = (DiscordMember)e.Author;
-                Delay();
+                bool hasfile = e.Message.Attachments.Count > 0;
+                bool isfilenamevaild = false;
+                String filecontent = "";
+
+                if (hasfile)
+                {
+                    DiscordAttachment file = e.Message.Attachments[0];
+
+                    isfilenamevaild = file.FileName.Equals("message.txt");
+                    string FileName = DateTime.Now.Ticks.ToString("X16") + @".txt"; //https://stackoverflow.com/questions/7874111/convert-datetime-now-to-a-valid-windows-filename => I hate the world
+
+                    using (var client = new WebClient())
+                    {
+                        client.DownloadFile(file.Url, FileName);
+                    }
+                    filecontent = File.ReadAllText(FileName);
+
+                    File.Delete(FileName);
+                }
+
+                Delay(350);
+
+
                 await e.Message.DeleteAsync();
-                await e.Channel.SendMessageAsync(null, false, QuickEmbed($"Embedded {member.Nickname} message", message));
+                try
+                {
+                    if (!hasfile)
+                    {
+                        await e.Channel.SendMessageAsync(null, false, QuickEmbed($"Embed de {member.Nickname ?? member.DisplayName: member.Nickname}", message, "#970045", false));
+                    }
+                    else if (hasfile && isfilenamevaild)
+                    {
+                        await e.Channel.SendMessageAsync(null, false, QuickEmbed($"Embed de {member.Nickname ?? member.DisplayName: member.Nickname}", filecontent, "#970045", false));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    await botupdates.SendMessageAsync("Excepcion con un Embed", false, GenerateErrorEmbed(ex));
+                    DiscordMessage errorembed = await e.Channel.SendMessageAsync(null, false, QuickEmbed(":warning: Error :warning:",
+                         EasyDualLanguageFormatting("Mensaje demasiado largo o contiene caracteres no validos", "Message too large or has invalid characters"), "#FF0000", false));
+                    Delay(5000);
+                    await errorembed.DeleteAsync();
+                }
+
                 return Task.CompletedTask;
             }
+            if (mensaje.StartsWith("-usercount") && isAdmin(e.Author))
+            {
+                UpdateUserCountChannel();
+            }
+
+
             //END OF IF WALL
             return Task.CompletedTask;
         }
@@ -542,7 +606,7 @@ namespace WordOfTheDay
             embedBuilder.WithColor(new DiscordColor("#970045"));
             return embedBuilder.Build();
         }
-        private DiscordEmbed GenerateErrorEmbed()
+        private DiscordEmbed GenerateErrorEmbed(Exception ex)
         {
             DiscordEmbedBuilder builder = new DiscordEmbedBuilder();
             builder
@@ -552,16 +616,16 @@ namespace WordOfTheDay
                             "A Yoshi's Bot",
                             "https://i.imgur.com/rT9YocG.jpg"
                             );
-            if (lastException.HelpLink != null) builder.WithUrl(lastException.HelpLink);
-            if (lastException.StackTrace != null) builder.AddField("StackTrace", lastException.StackTrace);
-            if (lastException.Message != null) builder.AddField("Mensaje", lastException.Message);
-            if (lastException.InnerException != null)
+            if (ex.HelpLink != null) builder.WithUrl(ex.HelpLink);
+            if (ex.StackTrace != null) builder.AddField("StackTrace", ex.StackTrace);
+            if (ex.Message != null) builder.AddField("Mensaje", ex.Message);
+            if (ex.InnerException != null)
             {
                 builder.AddField("**INNER EXCEPTION**", "**——————————————————————————————————————**");
-                if (lastException.InnerException.HelpLink != null) builder.WithUrl(lastException.InnerException.HelpLink);
-                if (lastException.InnerException.Message != null) builder.AddField("Mensaje", lastException.InnerException.Message);
+                if (ex.InnerException.HelpLink != null) builder.WithUrl(ex.InnerException.HelpLink);
+                if (ex.InnerException.Message != null) builder.AddField("Mensaje", ex.InnerException.Message);
             }
-            if (lastExceptionDatetime != null) { builder.WithTimestamp(lastExceptionDatetime); };
+            builder.WithTimestamp(DateTime.Now);
             return builder.Build();
         }
         /// <summary>
@@ -602,7 +666,9 @@ namespace WordOfTheDay
                     "\n-SendWOTD: Envia una nueva Palabra del dia" +
             "\n-CheckPencils: Checkea todos los usuarios, y pone o quita el emoji :pencil: segun tenga o no el rol de `Correct Me`" +
             "\n-RemoveReactions <Channel ID> <Message ID>: Borra todas las reacciones de un mensaje" +
-            "\n-IsBlocked (DiscordUserID): Comprueba si el usuario con el id suministrado ha bloqueado al bot";
+            "\n-Embed: Transforma el mensaje enviado en un embed" +
+            "\n-UserCount: Actualiza el canal User count" +
+             "\n-IsBlocked (DiscordUserID): Comprueba si el usuario con el id suministrado ha bloqueado al bot";
             //ENG
             salida += "\n" + DiscordEmoji.FromName(Client, ":flag_gb:") +
             "\n-Help: Shows this help text" +
@@ -614,6 +680,8 @@ namespace WordOfTheDay
                     "\n-SendWOTD: Sends a new Word of the day" +
             "\n-CheckPencils: Checks all users and gives or removes the :pencil: emoji depending if the user has the `Correct Me` role" +
             "\n-RemoveReactions <Channel ID> <Message ID>: Removes all the reactions from a message" +
+            "\n-Embed: Converts the message sent into an embed" +
+            "\n-UserCount: Updates the User count channel" +
             "\n-IsBlocked (DiscordUserID): Checks whether the user with the supplied id has blocked the bot";
             if (member.Id == yoshi.Id) salida += "\n **-gimmiadmin | -dletadmin**";
 
