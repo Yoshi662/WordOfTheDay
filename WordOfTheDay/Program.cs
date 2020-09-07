@@ -18,7 +18,7 @@ namespace WordOfTheDay
 {
     public class Program
     {
-        public readonly string version = "1.6.0";
+        public readonly string version = "1.6.1";
         public readonly string internalname = "More Emojis";
         public DiscordClient Client { get; set; }
         private static Program prog;
@@ -422,7 +422,8 @@ namespace WordOfTheDay
                         string filepath = DateTime.Now.Ticks.ToString("X16") + "." + currentformat;
                             wc.DownloadFile(content[1], filepath);
                             DiscordGuildEmoji guildEmoji = await e.Guild.CreateEmojiAsync(content[2], File.OpenRead(filepath));
-                            await e.Channel.SendMessageAsync(guildEmoji.ToString());
+                        await e.Channel.SendMessageAsync(guildEmoji.ToString());
+                        File.Delete(filepath);
                         }
                     }
                     else
