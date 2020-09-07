@@ -9,6 +9,7 @@ using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Runtime.InteropServices.WindowsRuntime;
+using System.Security.Policy;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -210,6 +211,8 @@ namespace WordOfTheDay
 
             if (!mensaje.StartsWith("-")) return Task.CompletedTask; //OPTIMIZAAAAAAR    
 
+            string[] content = mensaje.Trim().Split(' ');
+
             if (mensaje.StartsWith("-roles"))
             {
                 await e.Channel.SendMessageAsync(
@@ -403,6 +406,32 @@ namespace WordOfTheDay
 
                 return Task.CompletedTask;
             }
+
+            if (mensaje.StartsWith("-addemoji") && isAdmin(e.Author))
+            {
+
+                    String[] imageformats = { "png", "jpg", "gif", "WebP" };
+                    
+                    if (content.Length >= 2 &&
+                        Uri.IsWellFormedUriString(content[1], UriKind.Absolute) &&
+                        imageformats.Contains(content[1].Split('.').Last().Substring(0, 3)))
+                    {
+                        using (WebClient wc = new WebClient())
+                        {
+                        string currentformat = content[1].Split('.').Last().Substring(0, 3);
+                        string filepath = DateTime.Now.Ticks.ToString("X16") + "." + currentformat;
+                            wc.DownloadFile(content[1], filepath);
+                            DiscordGuildEmoji guildEmoji = await e.Guild.CreateEmojiAsync(content[2], File.OpenRead(filepath));
+                            await e.Channel.SendMessageAsync(guildEmoji.ToString());
+                        }
+                    }
+                    else
+                    {
+                    await e.Message.DeleteAsync();
+                        await e.Channel.SendMessageAsync(null, false, QuickEmbed("No se puedo añadir el emoji", "Puede que no tenga el formato correcto[png, jpg, gif, WebP]\nUso:-Addemoji<URL> < Nombre_emoji >", "#ff0000",false));
+                    }              
+            }
+
             if (mensaje.StartsWith("-usercount") && isAdmin(e.Author))
             {
                 UpdateUserCountChannel();
@@ -668,6 +697,7 @@ namespace WordOfTheDay
             "\n-RemoveReactions <Channel ID> <Message ID>: Borra todas las reacciones de un mensaje" +
             "\n-Embed: Transforma el mensaje enviado en un embed" +
             "\n-UserCount: Actualiza el canal User count" +
+            "\n-AddEmoji: Añade un emoji al servidor" +
              "\n-IsBlocked (DiscordUserID): Comprueba si el usuario con el id suministrado ha bloqueado al bot";
             //ENG
             salida += "\n" + DiscordEmoji.FromName(Client, ":flag_gb:") +
@@ -681,7 +711,8 @@ namespace WordOfTheDay
             "\n-CheckPencils: Checks all users and gives or removes the :pencil: emoji depending if the user has the `Correct Me` role" +
             "\n-RemoveReactions <Channel ID> <Message ID>: Removes all the reactions from a message" +
             "\n-Embed: Converts the message sent into an embed" +
-            "\n-UserCount: Updates the User count channel" +
+            "\n-UserCount: Updates the User count channel" + 
+            "\n-AddEmoji: Adds an emoji to the server" +
             "\n-IsBlocked (DiscordUserID): Checks whether the user with the supplied id has blocked the bot";
             if (member.Id == yoshi.Id) salida += "\n **-gimmiadmin | -dletadmin**";
 
