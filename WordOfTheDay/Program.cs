@@ -18,8 +18,8 @@ namespace WordOfTheDay
 {
     public class Program
     {
-        public readonly string version = "1.5.2";
-        public readonly string internalname = "Manual user Updater";
+        public readonly string version = "1.6.0";
+        public readonly string internalname = "More Emojis";
         public DiscordClient Client { get; set; }
         private static Program prog;
 
