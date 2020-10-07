@@ -19,7 +19,7 @@ namespace WordOfTheDay
 {
     public class Program
     {
-        public readonly string version = "1.6.2";
+        public readonly string version = "1.6.2.1";
         public readonly string internalname = "Wrapper Update";
         public DiscordClient Client { get; set; }
         private static Program prog;
@@ -459,13 +459,13 @@ namespace WordOfTheDay
 
         private Task Client_GuildAvailable(DiscordClient sender, GuildCreateEventArgs e)
         {
-            sender.Logger.LogInformation("Guild available: { e.Guild.Name}");
+            sender.Logger.LogInformation($"Guild available: { e.Guild.Name}");
             return Task.CompletedTask;
         }
 
         private Task Client_ClientError(DiscordClient sender, ClientErrorEventArgs e)
         {
-            sender.Logger.LogError("Exception occured: {e.Exception.GetType()}: {e.Exception.Message}");
+            sender.Logger.LogError($"Exception occured: {e.Exception.GetType()}: {e.Exception.Message}");
             lastException = e.Exception;
             lastExceptionDatetime = DateTime.Now;
             return Task.CompletedTask;
