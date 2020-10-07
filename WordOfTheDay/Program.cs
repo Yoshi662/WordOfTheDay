@@ -10,6 +10,7 @@ using System.Net;
 using System.Net.NetworkInformation;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Security.Policy;
+using Microsoft.Extensions.Logging;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -18,8 +19,8 @@ namespace WordOfTheDay
 {
     public class Program
     {
-        public readonly string version = "1.6.1";
-        public readonly string internalname = "More Emojis";
+        public readonly string version = "1.6.2";
+        public readonly string internalname = "Wrapper Update";
         public DiscordClient Client { get; set; }
         private static Program prog;
 
@@ -73,15 +74,14 @@ namespace WordOfTheDay
                 TokenType = TokenType.Bot,
 
                 AutoReconnect = true,
-                LogLevel = LogLevel.Info,
-                UseInternalLogHandler = true
+                MinimumLogLevel = LogLevel.Information,
             };
 
             this.Client = new DiscordClient(cfg);
 
-            this.Client.Ready += this.Client_Ready;
-            this.Client.GuildAvailable += this.Client_GuildAvailable;
-            this.Client.ClientErrored += this.Client_ClientError;
+            this.Client.Ready += Client_Ready;
+            this.Client.GuildAvailable += Client_GuildAvailable;
+            this.Client.ClientErrored += Client_ClientError;
             this.Client.MessageCreated += Client_MessageCreated;
             this.Client.GuildMemberUpdated += Client_GuildMemberUpdated;
             this.Client.MessageReactionAdded += Client_MessageReactionAdded;
@@ -136,7 +136,7 @@ namespace WordOfTheDay
 
 
                 await botupdates.SendFileAsync(
-                    lastExceptionDatetime.ToString("yyyy-mm-dd HH_mm_ss") + "WOTD_EX_StackTrace.txt",
+                    lastExceptionDatetime.ToString("s") + "WOTD_EX_StackTrace.txt",
                     new MemoryStream(Encoding.UTF8.GetBytes(lastException.InnerException.StackTrace)),
                         "**Bot Breaking Exception**  -  " + lastExceptionDatetime.ToString("yyyy-mm-dd HH_mm_ss") + " - " + yoshi.Mention,
                     false,
@@ -151,7 +151,8 @@ namespace WordOfTheDay
             await Task.Delay(-1);
         }
 
-        private Task Client_VoiceStateUpdated(VoiceStateUpdateEventArgs e)
+
+        private Task Client_VoiceStateUpdated(DiscordClient sender, VoiceStateUpdateEventArgs e)
         {
             bool isuserconnected;
             try
@@ -175,7 +176,7 @@ namespace WordOfTheDay
             return Task.CompletedTask;
         }
 
-        private Task Client_GuildMemberAdded(GuildMemberAddEventArgs e)
+        private Task Client_GuildMemberAdded(DiscordClient sender, GuildMemberAddEventArgs e)
         {
             DiscordMember miembro = e.Member;
             modlog.SendMessageAsync(null, false, QuickEmbed($"New Member: {miembro.Username}#{miembro.Discriminator}",
@@ -190,13 +191,13 @@ namespace WordOfTheDay
         #endregion
 
         #region events
-        private Task Client_GuildMemberUpdated(GuildMemberUpdateEventArgs e)
+        private Task Client_GuildMemberUpdated(DiscordClient sender, GuildMemberUpdateEventArgs e)
         {
             CheckPencil(e.Member);
             return Task.CompletedTask;
         }
 
-        private async Task<Task> Client_MessageCreated(MessageCreateEventArgs e)
+        private async Task<Task> Client_MessageCreated(DiscordClient sender, MessageCreateEventArgs e)
         {
             //Esto es horrible pero bueno
             string mensaje = e.Message.Content.ToLower();
@@ -406,8 +407,15 @@ namespace WordOfTheDay
 
                 return Task.CompletedTask;
             }
+            if (mensaje.StartsWith("-s") && e.Author == yoshi)
+            {
+                String contenido = e.Message.Content.Substring(2).Trim();
+                await e.Message.DeleteAsync();
+                await e.Channel.SendMessageAsync(contenido);
+            }
 
-            if (mensaje.StartsWith("-addemoji") && isAdmin(e.Author))
+
+                if (mensaje.StartsWith("-addemoji") && isAdmin(e.Author))
             {
 
                     String[] imageformats = { "png", "jpg", "gif", "WebP" };
@@ -443,34 +451,27 @@ namespace WordOfTheDay
             return Task.CompletedTask;
         }
 
-        private Task Client_Ready(ReadyEventArgs e)
+        private Task Client_Ready(DiscordClient sender,ReadyEventArgs e)
         {
-            e.Client.DebugLogger.LogMessage(LogLevel.Info, "WordOfTheDay", "Client is ready to process events.", DateTime.Now);
+            sender.Logger.LogInformation("Client is ready to process events.");
             return Task.CompletedTask;
         }
 
-        private Task Client_GuildAvailable(GuildCreateEventArgs e)
+        private Task Client_GuildAvailable(DiscordClient sender, GuildCreateEventArgs e)
         {
-            e.Client.DebugLogger.LogMessage(LogLevel.Info, "WordOfTheDay", $"Guild available: {e.Guild.Name}", DateTime.Now);
+            sender.Logger.LogInformation("Guild available: { e.Guild.Name}");
             return Task.CompletedTask;
         }
 
-        private Task Client_ClientError(ClientErrorEventArgs e)
+        private Task Client_ClientError(DiscordClient sender, ClientErrorEventArgs e)
         {
-            e.Client.DebugLogger.LogMessage(LogLevel.Error, "WordOfTheDay", $"Exception occured: {e.Exception.GetType()}: {e.Exception.Message}", DateTime.Now);
+            sender.Logger.LogError("Exception occured: {e.Exception.GetType()}: {e.Exception.Message}");
             lastException = e.Exception;
             lastExceptionDatetime = DateTime.Now;
-
-            while (!HasInternetConnection())
-            {
-                e.Client.DebugLogger.LogMessage(LogLevel.Error, "WordOfTheDay", $"Can't connect to the Discord Servers. Reconnecting", DateTime.Now);
-                Delay(5000);
-            }
-            prog.RunBotAsync().GetAwaiter().GetResult();
             return Task.CompletedTask;
         }
 
-        private Task Client_MessageReactionAdded(MessageReactionAddEventArgs e)
+        private Task Client_MessageReactionAdded(DiscordClient sender, MessageReactionAddEventArgs e)
         {
             if (e.Channel != roles) { return Task.CompletedTask; }
             String emojiname = e.Emoji.GetDiscordName();
@@ -478,13 +479,13 @@ namespace WordOfTheDay
             if (ReactionRole.ContainsKey(e.Message.Id))
             {
                 Dictionary<string, ulong> auxDict = ReactionRole[e.Message.Id];
-                DiscordMember sender = (DiscordMember)e.User;
-                sender.GrantRoleAsync(languageServer.GetRole(auxDict[emojiname]));
+                DiscordMember member = (DiscordMember)e.User;
+                member.GrantRoleAsync(languageServer.GetRole(auxDict[emojiname]));
             }
             return Task.CompletedTask;
         }
 
-        private Task Client_MessageReactionRemoved(MessageReactionRemoveEventArgs e)
+        private Task Client_MessageReactionRemoved(DiscordClient sender, MessageReactionRemoveEventArgs e)
         {
             if (e.Channel != roles) { return Task.CompletedTask; }
             String emojiname = e.Emoji.GetDiscordName();
@@ -492,8 +493,8 @@ namespace WordOfTheDay
             if (ReactionRole.ContainsKey(e.Message.Id))
             {
                 Dictionary<string, ulong> auxDict = ReactionRole[e.Message.Id];
-                DiscordMember sender = (DiscordMember)e.User;
-                sender.RevokeRoleAsync(languageServer.GetRole(auxDict[emojiname]));
+                DiscordMember member = (DiscordMember)e.User;
+                member.RevokeRoleAsync(languageServer.GetRole(auxDict[emojiname]));
             }
             return Task.CompletedTask;
         }
