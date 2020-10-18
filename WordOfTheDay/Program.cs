@@ -8,21 +8,24 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
-using System.Runtime.InteropServices.WindowsRuntime;
-using System.Security.Policy;
 using Microsoft.Extensions.Logging;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using DSharpPlus.Interactivity;
+using DSharpPlus.CommandsNext;
+using DSharpPlus.CommandsNext.Exceptions;
+using DSharpPlus.Interactivity.Extensions;
 
 namespace WordOfTheDay
 {
     public class Program
     {
-        public readonly string version = "1.6.2.1";
-        public readonly string internalname = "Wrapper Update";
+        public readonly string version = "1.7.0";
+        public readonly string internalname = "Study Session Tracker";
         public DiscordClient Client { get; set; }
         private static Program prog;
+        static CommandsNextExtension commands;
 
         private DiscordGuild languageServer;
 
@@ -39,6 +42,7 @@ namespace WordOfTheDay
         private DiscordRole CorrectMeRole;
         private DiscordRole admin;
         private DiscordRole onVC;
+        private DiscordRole StudyRole;
 
         private DiscordUser yoshi;
 
@@ -74,7 +78,7 @@ namespace WordOfTheDay
                 TokenType = TokenType.Bot,
 
                 AutoReconnect = true,
-                MinimumLogLevel = LogLevel.Information,
+                MinimumLogLevel = LogLevel.Debug, //TODO
             };
 
             this.Client = new DiscordClient(cfg);
@@ -106,6 +110,7 @@ namespace WordOfTheDay
             roles = await Client.GetChannelAsync(ulong.Parse(cfgjson.RolesChannel)); //Channel which users get their roles from.
             usercount = await Client.GetChannelAsync(ulong.Parse(cfgjson.UserCountChannel));
             botupdates = await Client.GetChannelAsync(ulong.Parse(cfgjson.BotUpdates));
+            StudyRole = languageServer.GetRole(ulong.Parse(cfgjson.StudyRole));
             admin = languageServer.GetRole(ulong.Parse(cfgjson.Admin));
             yoshi = await Client.GetUserAsync(ulong.Parse(cfgjson.Yoshi));
 
@@ -144,6 +149,24 @@ namespace WordOfTheDay
                     );
                 Delay();
             }
+            this.Client.UseInteractivity(new InteractivityConfiguration
+            {
+                PaginationBehaviour = DSharpPlus.Interactivity.Enums.PaginationBehaviour.Ignore,
+                Timeout = TimeSpan.FromMinutes(2)
+            });
+
+            commands = Client.UseCommandsNext(new CommandsNextConfiguration
+            {
+                StringPrefixes = new[] { "-" },
+                EnableDefaultHelp = false,
+                DmHelp = false,
+                IgnoreExtraArguments = true
+            });
+
+            commands.RegisterCommands<StudyCommands>();
+
+            commands.CommandExecuted += this.Commands_CommandExecuted;
+            commands.CommandErrored += this.Commands_CommandErrored;
 
             Thread WOTD = new Thread(() => SetUpTimer(14, 00));
             WOTD.Start();
@@ -151,26 +174,35 @@ namespace WordOfTheDay
             await Task.Delay(-1);
         }
 
-
         private Task Client_VoiceStateUpdated(DiscordClient sender, VoiceStateUpdateEventArgs e)
         {
-            bool isuserconnected;
+            //TODO test this
+            DiscordUser user = e.User;
+            bool isuserconnected = false;
             try
             {
-                isuserconnected = e.Channel.Users.Contains(e.User);
+                isuserconnected = e.Channel.Users.Contains(user);
             }
-            catch (NullReferenceException ex)
+            catch (NullReferenceException)
             {
                 isuserconnected = false;
             }
-            DiscordMember member = (DiscordMember)e.User;
-            if (isuserconnected)
+
+            try
             {
-                member.GrantRoleAsync(onVC);
+                DiscordMember member = (DiscordMember)e.User; //a veces esto peta y no se por que
+                if (isuserconnected)
+                {
+                    member.GrantRoleAsync(onVC);
+                }
+                else
+                {
+                    member.RevokeRoleAsync(onVC);
+                }
             }
-            else
+            catch (Exception)
             {
-                member.RevokeRoleAsync(onVC);
+
             }
 
             return Task.CompletedTask;
@@ -179,11 +211,11 @@ namespace WordOfTheDay
         private Task Client_GuildMemberAdded(DiscordClient sender, GuildMemberAddEventArgs e)
         {
             DiscordMember miembro = e.Member;
-            modlog.SendMessageAsync(null, false, QuickEmbed($"New Member: {miembro.Username}#{miembro.Discriminator}",
+            modlog.SendMessageAsync(null, false, HelperMethods.QuickEmbed($"New Member: {miembro.Username}#{miembro.Discriminator}",
                 $"Discord ID: {miembro.Id}\n" +
                 $"Fecha de creacion de cuenta: {miembro.CreationTimestamp}",
-                "#970045",
-                false), null);
+                false
+                ), null);
             return Task.CompletedTask;
         }
 
@@ -232,7 +264,7 @@ namespace WordOfTheDay
             if (mensaje.StartsWith("-help"))
             {
                 DiscordMember member = (DiscordMember)e.Author;
-                await member.SendMessageAsync(generateHelp(member));
+                await member.SendMessageAsync(GenerateHelp(member));
 
                 await e.Message.RespondAsync(
                     DiscordEmoji.FromName(Client, ":flag_es:") + " Ayuda Enviada por mensaje privado\n"
@@ -240,23 +272,23 @@ namespace WordOfTheDay
                 return Task.CompletedTask;
             }
 
-            if (mensaje.StartsWith("-sendwotd") && isAdmin(e.Author))
+            if (mensaje.StartsWith("-sendwotd") && IsAdmin(e.Author))
             {
-                bool confirmacion = await verificarAsync(e.Channel, e.Author, 15);
+                bool confirmacion = await VerificarAsync(e.Channel, e.Author, 15);
                 if (confirmacion)
                 {
-                    await sendWOTDAsync();
+                    await SendWOTDAsync();
                 }
                 return Task.CompletedTask;
             }
 
             if (mensaje.StartsWith("-version"))
             {
-                await e.Channel.SendMessageAsync("", false, getVersionEmbed());
+                await e.Channel.SendMessageAsync("", false, GetVersionEmbed());
                 return Task.CompletedTask;
             }
 
-            if (mensaje.StartsWith("-checkpencils") && isAdmin(e.Author))
+            if (mensaje.StartsWith("-checkpencils") && IsAdmin(e.Author))
             {
                 IEnumerable<DiscordUser> users = languagechannel.Users;
                 foreach (DiscordUser user in users)
@@ -267,7 +299,7 @@ namespace WordOfTheDay
                 return Task.CompletedTask;
             }
 
-            if (mensaje.StartsWith("-isblocked") && isAdmin(e.Author))
+            if (mensaje.StartsWith("-isblocked") && IsAdmin(e.Author))
             {
                 DiscordMember senderMember = (DiscordMember)e.Author;
                 string nickname = "";
@@ -324,9 +356,9 @@ namespace WordOfTheDay
                 return Task.CompletedTask;
             }
 
-            if (mensaje.StartsWith("-restart") && isAdmin(e.Author))
+            if (mensaje.StartsWith("-restart") && IsAdmin(e.Author))
             {
-                bool confirmacion = await verificarAsync(e.Channel, e.Author, 15);
+                bool confirmacion = await VerificarAsync(e.Channel, e.Author, 15);
                 if (confirmacion)
                 {
                     await e.Channel.SendMessageAsync(EasyDualLanguageFormatting("Reiniciando Bot, por favor espere", "Restarting Bot, please wait"));
@@ -339,7 +371,7 @@ namespace WordOfTheDay
                 }
             }
 
-            if (mensaje.StartsWith("-removereactions") && isAdmin(e.Author))
+            if (mensaje.StartsWith("-removereactions") && IsAdmin(e.Author))
             {
                 ulong channelid = 0;
                 ulong mensajeid = 0;
@@ -356,7 +388,7 @@ namespace WordOfTheDay
 
             }
 
-            if (mensaje.StartsWith("-embed") && isAdmin(e.Author))
+            if (mensaje.StartsWith("-embed") && IsAdmin(e.Author))
             {
 
                 String message = e.Message.Content.Substring(6);
@@ -389,59 +421,51 @@ namespace WordOfTheDay
                 {
                     if (!hasfile)
                     {
-                        await e.Channel.SendMessageAsync(null, false, QuickEmbed($"Embed de {member.Nickname ?? member.DisplayName: member.Nickname}", message, "#970045", false));
+                        await e.Channel.SendMessageAsync(null, false, HelperMethods.QuickEmbed($"Embed de {member.Nickname ?? member.DisplayName: member.Nickname}", message, false));
                     }
                     else if (hasfile && isfilenamevaild)
                     {
-                        await e.Channel.SendMessageAsync(null, false, QuickEmbed($"Embed de {member.Nickname ?? member.DisplayName: member.Nickname}", filecontent, "#970045", false));
+                        await e.Channel.SendMessageAsync(null, false, HelperMethods.QuickEmbed($"Embed de {member.Nickname ?? member.DisplayName: member.Nickname}", filecontent, false));
                     }
                 }
                 catch (Exception ex)
                 {
                     await botupdates.SendMessageAsync("Excepcion con un Embed", false, GenerateErrorEmbed(ex));
-                    DiscordMessage errorembed = await e.Channel.SendMessageAsync(null, false, QuickEmbed(":warning: Error :warning:",
-                         EasyDualLanguageFormatting("Mensaje demasiado largo o contiene caracteres no validos", "Message too large or has invalid characters"), "#FF0000", false));
+                    DiscordMessage errorembed = await e.Channel.SendMessageAsync(null, false, HelperMethods.QuickEmbed(":warning: Error :warning:",
+                         EasyDualLanguageFormatting("Mensaje demasiado largo o contiene caracteres no validos", "Message too large or has invalid characters"), false, "#FF0000"));
                     Delay(5000);
                     await errorembed.DeleteAsync();
                 }
 
                 return Task.CompletedTask;
             }
-            if (mensaje.StartsWith("-s") && e.Author == yoshi)
-            {
-                String contenido = e.Message.Content.Substring(2).Trim();
-                await e.Message.DeleteAsync();
-                await e.Channel.SendMessageAsync(contenido);
-            }
-
-
-                if (mensaje.StartsWith("-addemoji") && isAdmin(e.Author))
+            if (mensaje.StartsWith("-addemoji") && IsAdmin(e.Author))
             {
 
-                    String[] imageformats = { "png", "jpg", "gif", "WebP" };
-                    
-                    if (content.Length >= 2 &&
-                        Uri.IsWellFormedUriString(content[1], UriKind.Absolute) &&
-                        imageformats.Contains(content[1].Split('.').Last().Substring(0, 3)))
+                String[] imageformats = { "png", "jpg", "gif", "WebP" };
+
+                if (content.Length >= 2 &&
+                    Uri.IsWellFormedUriString(content[1], UriKind.Absolute) &&
+                    imageformats.Contains(content[1].Split('.').Last().Substring(0, 3)))
+                {
+                    using (WebClient wc = new WebClient())
                     {
-                        using (WebClient wc = new WebClient())
-                        {
                         string currentformat = content[1].Split('.').Last().Substring(0, 3);
                         string filepath = DateTime.Now.Ticks.ToString("X16") + "." + currentformat;
-                            wc.DownloadFile(content[1], filepath);
-                            DiscordGuildEmoji guildEmoji = await e.Guild.CreateEmojiAsync(content[2], File.OpenRead(filepath));
+                        wc.DownloadFile(content[1], filepath);
+                        DiscordGuildEmoji guildEmoji = await e.Guild.CreateEmojiAsync(content[2], File.OpenRead(filepath));
                         await e.Channel.SendMessageAsync(guildEmoji.ToString());
                         File.Delete(filepath);
-                        }
                     }
-                    else
-                    {
+                }
+                else
+                {
                     await e.Message.DeleteAsync();
-                        await e.Channel.SendMessageAsync(null, false, QuickEmbed("No se puedo añadir el emoji", "Puede que no tenga el formato correcto[png, jpg, gif, WebP]\nUso:-Addemoji<URL> < Nombre_emoji >", "#ff0000",false));
-                    }              
+                    await e.Channel.SendMessageAsync(null, false, HelperMethods.QuickEmbed("No se puedo añadir el emoji", "Puede que no tenga el formato correcto[png, jpg, gif, WebP]\nUso:-Addemoji<URL> < Nombre_emoji >", false, "#ff0000"));
+                }
             }
 
-            if (mensaje.StartsWith("-usercount") && isAdmin(e.Author))
+            if (mensaje.StartsWith("-usercount") && IsAdmin(e.Author))
             {
                 UpdateUserCountChannel();
             }
@@ -451,7 +475,7 @@ namespace WordOfTheDay
             return Task.CompletedTask;
         }
 
-        private Task Client_Ready(DiscordClient sender,ReadyEventArgs e)
+        private Task Client_Ready(DiscordClient sender, ReadyEventArgs e)
         {
             sender.Logger.LogInformation("Client is ready to process events.");
             return Task.CompletedTask;
@@ -469,6 +493,43 @@ namespace WordOfTheDay
             lastException = e.Exception;
             lastExceptionDatetime = DateTime.Now;
             return Task.CompletedTask;
+        }
+
+        private Task Commands_CommandExecuted(CommandsNextExtension sender, CommandExecutionEventArgs e)
+        {
+            // let's log the name of the command and user
+            sender.Client.Logger.LogInformation($"{e.Context.User.Username} successfully executed '{e.Command.QualifiedName}'");
+
+            // since this method is not async, let's return
+            // a completed task, so that no additional work
+            // is done
+            return Task.CompletedTask;
+        }
+
+        private async Task Commands_CommandErrored(CommandsNextExtension sender, CommandErrorEventArgs e)
+        {
+
+            // let's log the error details
+            sender.Client.Logger.LogError($"{e.Context.User.Username} tried executing '{e.Command?.QualifiedName ?? "<unknown command>"}' but it errored: {e.Exception.GetType()}: {e.Exception.Message ?? "<no message>"}", DateTime.Now);
+
+            // let's check if the error is a result of lack
+            // of required permissions
+            if (e.Exception is ChecksFailedException ex)
+            {
+                // yes, the user lacks required permissions, 
+                // let them know
+
+                var emoji = DiscordEmoji.FromName(e.Context.Client, ":no_entry:");
+
+                // let's wrap the response into an embed
+                var embed = new DiscordEmbedBuilder
+                {
+                    Title = "Access denied",
+                    Description = $"{emoji} You do not have the permissions required to execute this command.",
+                    Color = new DiscordColor(0xFF0000) // red
+                };
+                await e.Context.RespondAsync("", embed: embed);
+            }
         }
 
         private Task Client_MessageReactionAdded(DiscordClient sender, MessageReactionAddEventArgs e)
@@ -498,10 +559,13 @@ namespace WordOfTheDay
             }
             return Task.CompletedTask;
         }
+
+
+
         #endregion
 
         #region main methods
-        public async Task<Task> sendWOTDAsync()
+        public async Task<Task> SendWOTDAsync()
         {
             WordOfTheDay TodaysWOTD = Logic.GetXMLWOTD();
 
@@ -587,7 +651,7 @@ namespace WordOfTheDay
                 bool isAfterSendTime = (DateTime.Compare(
                     now,
                     new DateTime(now.Year, now.Month, now.Day, hora, minuto, segundo)
-                    ) >= 1 ? true : false);
+                    ) >= 1);
 
                 proximoWOTD = new DateTime( //?:!?:!?:!?:!?:!
                     (isAfterSendTime ? (isTodayEndOfYear ? now.Year + 1 : now.Year) : now.Year),
@@ -602,7 +666,7 @@ namespace WordOfTheDay
 
                 Delay((int)diff.TotalMilliseconds);
                 UpdateUserCountChannel();
-                sendWOTDAsync();
+                SendWOTDAsync();
             }
         }
 
@@ -621,11 +685,11 @@ namespace WordOfTheDay
         #endregion
 
         #region helper methods
-        public void Delay(int delay = 650)
+        public static void Delay(int delay = 650)
         {
             System.Threading.Thread.Sleep(delay);
         }
-        private DiscordEmbed getVersionEmbed()
+        private DiscordEmbed GetVersionEmbed()
         {
             DiscordEmbedBuilder embedBuilder = new DiscordEmbedBuilder();
             embedBuilder.WithThumbnail("https://cdn.discordapp.com/attachments/477632242190123027/603763546836303899/dummy.png");
@@ -659,32 +723,11 @@ namespace WordOfTheDay
             builder.WithTimestamp(DateTime.Now);
             return builder.Build();
         }
-        /// <summary>
-        /// Genera un DiscordEmbed basico
-        /// </summary>
-        /// <param name="titulo">Titulo del embed</param>
-        /// <param name="descripcion">Descripcion del embed</param>
-        /// <param name="color">Cadena Hexadecimal para el color del embed</param>
-        /// <param name="footerspam">Habilita el footerSpam "A Yoshi's bot"</param>
-        /// <returns></returns>
-        private DiscordEmbed QuickEmbed(String titulo = "", string descripcion = "", string color = "#970045", bool footerspam = true)
+
+        private string GenerateHelp(DiscordMember member)
         {
-            DiscordEmbedBuilder builder = new DiscordEmbedBuilder();
-            builder.WithTitle(titulo)
-                .WithDescription(descripcion)
-                .WithColor(new DiscordColor(color));
-            if (footerspam)
-            {
-                builder.WithFooter(
-                           "A Yoshi's Bot",
-                           "https://i.imgur.com/rT9YocG.jpg"
-                           );
-            }
-            return builder.Build();
-        }
-        private string generateHelp(DiscordMember member)
-        {
-            bool admin = isAdmin(member);
+            bool admin = IsAdmin(member);
+            bool study = member.Roles.Contains(StudyRole);
 
             //ESP
             String salida = ">>> " + DiscordEmoji.FromName(Client, ":flag_es:") +
@@ -693,6 +736,12 @@ namespace WordOfTheDay
             "\n-Roles: Recuerda a los usuarios que deben de ponerse los roles" +
             "\n-Wote: Inicia una votacion" +
             "\n-Version: Muestra la version del bot";
+            if (study) salida +=
+                     "\n-***Study Session Tracker***" +
+                     "\n-Study *<Asignatura>*: Empieza una sesion de estudio" +
+                     "\n-AddHours *<Horas> <Asignatura>*: Añade horas a tu perfil" +
+                     "\n-GetHours: Obtiene tu tiempo estudiado total" +
+                     "\n-Ranking: Muestra los 5 mejores estudiantes";
             if (admin) salida += "\n***Solo para administradores***" +
                     "\n-SendWOTD: Envia una nueva Palabra del dia" +
             "\n-CheckPencils: Checkea todos los usuarios, y pone o quita el emoji :pencil: segun tenga o no el rol de `Correct Me`" +
@@ -708,29 +757,35 @@ namespace WordOfTheDay
             "\n-roles: reminds users to set up their roles" +
             "\n-Wote: Starts a vote" +
             "\n-Version: Shows the current version";
+            if (study) salida +=
+                 "\n-***Study Session Tracker***" +
+                 "\n-Study *<Subject>*: Starts a study session" +
+                 "\n-AddHours *<Hours> <subject>*: Adds hours to your profile" +
+                 "\n-GetHours: Obtiene tu tiempo estudiado total" +
+                 "\n-Ranking: Shows the top 5 Studients";
             if (admin) salida += "\n***Admin only***" +
                     "\n-SendWOTD: Sends a new Word of the day" +
             "\n-CheckPencils: Checks all users and gives or removes the :pencil: emoji depending if the user has the `Correct Me` role" +
             "\n-RemoveReactions <Channel ID> <Message ID>: Removes all the reactions from a message" +
             "\n-Embed: Converts the message sent into an embed" +
-            "\n-UserCount: Updates the User count channel" + 
+            "\n-UserCount: Updates the User count channel" +
             "\n-AddEmoji: Adds an emoji to the server" +
             "\n-IsBlocked (DiscordUserID): Checks whether the user with the supplied id has blocked the bot";
-            if (member.Id == yoshi.Id) salida += "\n **-gimmiadmin | -dletadmin**";
+            if (member.Id == yoshi.Id) salida += "\n `-gimmiadmin, -dletadmin, -exec, -execq`";
 
             return salida;
         }
-        private bool isAdmin(DiscordMember member)
+        private bool IsAdmin(DiscordMember member)
         {
             if (member.Roles.Contains(admin)) return true;
             else return false;
         }
-        private bool isAdmin(DiscordUser user)
+        private bool IsAdmin(DiscordUser user)
         {                               //heh
-            return isAdmin((DiscordMember)user);
+            return IsAdmin((DiscordMember)user);
         }
 
-        private async Task<bool> verificarAsync(DiscordChannel channel, DiscordUser autor, int time = 30)
+        private async Task<bool> VerificarAsync(DiscordChannel channel, DiscordUser autor, int time = 30)
         {
             DiscordMessage verificacion = await channel.SendMessageAsync(EasyDualLanguageFormatting("¿Estas seguro?", "Are you sure?"));
             await WoteAsync(verificacion, false);
@@ -810,6 +865,9 @@ namespace WordOfTheDay
 
             [JsonProperty("UserCountChannel")]
             public string UserCountChannel { get; private set; }
+
+            [JsonProperty("StudyRole")]
+            public string StudyRole { get; private set; }
 
             [JsonProperty("Admin")]
             public string Admin { get; private set; }
