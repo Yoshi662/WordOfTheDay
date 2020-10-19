@@ -23,7 +23,7 @@ namespace WordOfTheDay
     public class StudyCommands : BaseCommandModule
     {
         [Command("study"), RequireGuild()]
-        public async Task Study(CommandContext ctx, string subject)
+        public async Task Study(CommandContext ctx, [RemainingText] string subject)
         {
             //Get ID and check if exists on the DB
             String UserID = ctx.User.Id.ToString();
@@ -95,7 +95,7 @@ namespace WordOfTheDay
         }
 
         [Command("addhours"), RequireGuild()]
-        public async Task Addhours(CommandContext ctx, string hours, string subject)
+        public async Task Addhours(CommandContext ctx, string hours, [RemainingText] string subject)
         {
             String UserID = ctx.User.Id.ToString();
             TryAddMember(ctx.Member);
