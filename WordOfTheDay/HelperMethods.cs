@@ -1,6 +1,7 @@
 ﻿using DSharpPlus.Entities;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -46,6 +47,11 @@ namespace WordOfTheDay
                                    );
                 return builder.Build();
             }
+        }
+
+        public static MemoryStream StringToMemoryStream(String input)
+        {
+            return new MemoryStream(Encoding.UTF8.GetBytes(input));
         }
     }
 }

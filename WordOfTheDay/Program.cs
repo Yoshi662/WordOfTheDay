@@ -21,7 +21,7 @@ namespace WordOfTheDay
 {
     public class Program
     {
-        public readonly string version = "1.7.0";
+        public readonly string version = "1.7.1";
         public readonly string internalname = "Study Session Tracker";
         public DiscordClient Client { get; set; }
         private static Program prog;
@@ -761,8 +761,8 @@ namespace WordOfTheDay
                  "\n-***Study Session Tracker***" +
                  "\n-Study *<Subject>*: Starts a study session" +
                  "\n-AddHours *<Hours> <subject>*: Adds hours to your profile" +
-                 "\n-GetHours: Obtiene tu tiempo estudiado total" +
-                 "\n-Ranking: Shows the top 5 Studients";
+                 "\n-GetHours: Get your total time studied" +
+                 "\n-Ranking: Shows the top 5 students ";
             if (admin) salida += "\n***Admin only***" +
                     "\n-SendWOTD: Sends a new Word of the day" +
             "\n-CheckPencils: Checks all users and gives or removes the :pencil: emoji depending if the user has the `Correct Me` role" +

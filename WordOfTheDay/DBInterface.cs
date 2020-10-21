@@ -142,7 +142,7 @@ namespace WordOfTheDay
             }
         }
 
-        public TimeSpan GetHoursByID(string ID)
+        public TimeSpan GetTotalHoursByID(string ID)
         {
             using (SqliteCommand command = conn.CreateCommand())
             {
@@ -163,6 +163,27 @@ namespace WordOfTheDay
                     }
                 }
             }
+        }
+
+        public Study_WorkSheet[] getRegsbyID(String ID)
+        {
+            List<Study_WorkSheet> regs = new List<Study_WorkSheet>();
+            //SELECT Userid, CAST(((julianday(EndTime) - julianday(Starttime)) * 1440) AS integer) AS Hours FROM study_worksheet
+            using (SqliteCommand command = conn.CreateCommand())
+            {
+                //TODO evitar que usuarios que no existen den execpciones
+                command.CommandText = @"SELECT UserID, Subject, Starttime, EndTime FROM study_worksheet WHERE userid = @id";
+                command.Parameters.AddWithValue("@id", ID);
+                using (SqliteDataReader reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        regs.Add(new Study_WorkSheet(reader.GetString(0), reader.GetString(1), reader.GetDateTime(2), reader.GetDateTime(3)));
+                    }
+                }
+            }
+
+            return regs.ToArray();
         }
 
         public Dictionary<string, TimeSpan> GetRanking()
@@ -198,8 +219,43 @@ namespace WordOfTheDay
         }
 
         #endregion
-        
+
         public void ClosecConn() => conn.Close();
     }
+
+}
+
+public partial class Study_WorkSheet
+{
+    public Study_WorkSheet(string userID, string subject, DateTime? startTime, DateTime? endTime)
+    {
+        UserID = userID;
+        Subject = subject;
+        StartTime = startTime;
+        EndTime = endTime;
+    }
+
+    public String UserID { get; set; }
+
+    public String Subject { get; set; }
+
+    public DateTime? StartTime { get; set; }
+
+    public DateTime? EndTime { get; set; }
+
+    public TimeSpan? TotalTime
+    {
+        get
+        {
+            return EndTime - StartTime;
+        }
+    }
+}
+
+public partial class Users
+{
+    public String ID { get; set; }
+
+    public String Name { get; set; }
 
 }

@@ -6,6 +6,7 @@ using DSharpPlus.Interactivity.Extensions;
 using Emzi0767.Utilities;
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Linq;
 using System.Security.AccessControl;
 using System.Text;
@@ -101,6 +102,7 @@ namespace WordOfTheDay
             TryAddMember(ctx.Member);
 
             DateTime StartTime = DateTime.Now.Date;
+            // 30 => 30h | 3:00 => 3h
             TimeSpan tiempo = hours.Contains(":") ? TimeSpan.Parse(hours) : TimeSpan.FromHours(int.Parse(hours));
             int daystosubstract = tiempo.Days;
             StartTime = StartTime.Subtract(TimeSpan.FromDays(tiempo.Days));
@@ -132,7 +134,7 @@ namespace WordOfTheDay
         [Command("addhours")]
         public async Task Addhours(CommandContext ctx)
         {
-            DiscordMessage mensaje = await ctx.RespondAsync("You need to put a subject and the number of hours! *in that order*");
+            DiscordMessage mensaje = await ctx.RespondAsync("You need to put a the number of hours and the subject! *in that order*");
             System.Threading.Thread.Sleep(5000);
             await mensaje.DeleteAsync();
         }
@@ -140,9 +142,18 @@ namespace WordOfTheDay
         [Command("gethours")]
         public async Task GetHours(CommandContext ctx)
         {
-            TimeSpan horas = DBInterface.Instance.GetHoursByID(ctx.User.Id.ToString());
+            String userid = ctx.User.Id.ToString();
+            TimeSpan horas = DBInterface.Instance.GetTotalHoursByID(userid);
+
+            Study_WorkSheet[] hours = DBInterface.Instance.getRegsbyID(userid);
+            int maxregs = hours.Length > 5 ? 5 : hours.Length;
+            string des = $"Last {maxregs}\n";
+            for (int i = 0; i < maxregs; i++)
+            {
+                des += $"{i+1} - {hours[i].Subject} - {hours[i].TotalTime}\n";
+            }
             await ctx.RespondAsync(null, false,
-                HelperMethods.QuickEmbed(ctx.Member.DisplayName + " Has " + horas.ToString() + " Hours", "", false)
+                HelperMethods.QuickEmbed(ctx.Member.DisplayName + " Has " + horas.ToString() + " Hours", des, false)
                 );
         }
 
@@ -177,7 +188,14 @@ namespace WordOfTheDay
         [Command("execq"), RequireOwner(), Hidden()]
         public async Task ExecQ(CommandContext ctx, [RemainingText] string SQL)
         {
-            ctx.RespondAsync("```" + DBInterface.Instance.ExecQuery(SQL) + "```");
+            string salida = "```" + DBInterface.Instance.ExecQuery(SQL) + "```";
+            if (salida.Length >= 2000)
+            {
+                ctx.RespondWithFileAsync($"{DateTime.Now:s}Query.txt", HelperMethods.StringToMemoryStream(salida));
+            } else
+            {
+                ctx.RespondAsync(salida);
+            }
             System.Threading.Thread.Sleep(5000);
             ctx.Message.DeleteAsync();
         }
