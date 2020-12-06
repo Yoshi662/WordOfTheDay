@@ -78,7 +78,8 @@ namespace WordOfTheDay
 				TokenType = TokenType.Bot,
 
 				AutoReconnect = true,
-				MinimumLogLevel = LogLevel.Debug, //TODO
+				MinimumLogLevel = LogLevel.Information,
+				Intents = DiscordIntents.All
 			};
 
 			this.Client = new DiscordClient(cfg);
@@ -149,7 +150,7 @@ namespace WordOfTheDay
 					);
 				Delay();
 			}
-			this.Client.UseInteractivity(new InteractivityConfiguration
+			/*this.Client.UseInteractivity(new InteractivityConfiguration
 			{
 				PaginationBehaviour = DSharpPlus.Interactivity.Enums.PaginationBehaviour.Ignore,
 				Timeout = TimeSpan.FromMinutes(2)
@@ -166,11 +167,10 @@ namespace WordOfTheDay
 			commands.RegisterCommands<StudyCommands>();
 
 			commands.CommandExecuted += this.Commands_CommandExecuted;
-			commands.CommandErrored += this.Commands_CommandErrored;
+			commands.CommandErrored += this.Commands_CommandErrored;*/
 
 			Thread WOTD = new Thread(() => SetUpTimer(14, 00));
 			WOTD.Start();
-
 			await Task.Delay(-1);
 		}
 
@@ -291,15 +291,18 @@ namespace WordOfTheDay
 
 			if (mensaje.StartsWith("-checkusers") && isAdmin)
 			{
-				IEnumerable<DiscordMember> members = await languageServer.GetAllMembersAsync();
-				foreach (DiscordMember member in members)
+				_ = Task.Run(async () =>
 				{
-					if (CheckUser(member))
-						Delay(100);
-					else
-						Delay(50);
-				}
-				await e.Channel.SendMessageAsync("Checking Users...");
+					IEnumerable<DiscordMember> members = await languageServer.GetAllMembersAsync();
+					foreach (DiscordMember member in members)
+					{
+						if (CheckUser(member))
+							Delay(100);
+						else
+							Delay(50);
+					}
+					await e.Channel.SendMessageAsync("Checking Users...");
+				});
 				return Task.CompletedTask;
 			}
 
@@ -468,6 +471,24 @@ namespace WordOfTheDay
 			if (mensaje.StartsWith("-usercount") && isAdmin)
 			{
 				UpdateUserCountChannel();
+			}
+
+			if (mensaje.StartsWith("-test"))
+			{
+				DiscordMember m = (DiscordMember)e.Author;
+				string output = "";
+				var roles = m.Roles;
+				foreach (var r in roles)
+				{
+					output += r.Name + "\n";
+				}
+				if (roles.Count() == 0)
+				{
+					e.Channel.SendMessageAsync("User has no roles");
+				} else
+				{
+					e.Channel.SendMessageAsync(output);
+				}
 			}
 
 			//END OF IF WALL
@@ -751,6 +772,7 @@ namespace WordOfTheDay
 			bool admin = IsAdmin(member);
 			bool study = member.Roles.Contains(StudyRole);
 
+
 			//ESP
 			String salida = ">>> " + DiscordEmoji.FromName(Client, ":flag_es:") +
 			"\n-Help: Muestra este texto de ayuda" +
@@ -799,7 +821,8 @@ namespace WordOfTheDay
 		}
 		private bool IsAdmin(DiscordMember member)
 		{
-			if (member.Roles.Contains(admin)) return true;
+			IEnumerable<DiscordRole> roles = member.Roles;
+			if (roles.Contains(admin)) return true;
 			else return false;
 		}
 		private bool IsAdmin(DiscordUser user)
