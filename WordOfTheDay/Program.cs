@@ -16,16 +16,16 @@ using DSharpPlus.Interactivity;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Exceptions;
 using DSharpPlus.Interactivity.Extensions;
-
 namespace WordOfTheDay
 {
 	public class Program
 	{
-		public readonly string version = "1.7.1";
-		public readonly string internalname = "Study Session Tracker";
+		public readonly string version = "1.7.2";
+		public readonly string internalname = "Bye Study Session Tracker";
 		public DiscordClient Client { get; set; }
 		private static Program prog;
-		static CommandsNextExtension commands;
+		//HACK Disabled SST
+		//static CommandsNextExtension commands;
 
 		private DiscordGuild languageServer;
 
@@ -42,6 +42,7 @@ namespace WordOfTheDay
 		private DiscordRole CorrectMeRole;
 		private DiscordRole admin;
 		private DiscordRole onVC;
+		//HACK Disabled SST
 		private DiscordRole StudyRole;
 
 		private DiscordUser yoshi;
@@ -150,6 +151,7 @@ namespace WordOfTheDay
 					);
 				Delay();
 			}
+			//HACK Disabled SST
 			/*this.Client.UseInteractivity(new InteractivityConfiguration
 			{
 				PaginationBehaviour = DSharpPlus.Interactivity.Enums.PaginationBehaviour.Ignore,
@@ -177,31 +179,15 @@ namespace WordOfTheDay
 		private Task Client_VoiceStateUpdated(DiscordClient sender, VoiceStateUpdateEventArgs e)
 		{
 			//TODO test this
-			DiscordUser user = e.User;
-			bool isuserconnected = false;
-			try
-			{
-				isuserconnected = e.Channel.Users.Contains(user);
-			}
-			catch (NullReferenceException)
-			{
-				isuserconnected = false;
-			}
+			DiscordMember member = (DiscordMember)e.After.User; //a veces esto peta y no se por que
+			bool isuserconnected = !(member.VoiceState.Channel is null);
 
-			try
+			if (isuserconnected)
 			{
-				DiscordMember member = (DiscordMember)e.User; //a veces esto peta y no se por que
-				if (isuserconnected)
-				{
-					member.GrantRoleAsync(onVC);
-				} else
-				{
-					member.RevokeRoleAsync(onVC);
-				}
-			}
-			catch (Exception)
+				member.GrantRoleAsync(onVC);
+			} else
 			{
-
+				member.RevokeRoleAsync(onVC);
 			}
 
 			return Task.CompletedTask;
@@ -224,7 +210,7 @@ namespace WordOfTheDay
 		#region events
 		private Task Client_GuildMemberUpdated(DiscordClient sender, GuildMemberUpdateEventArgs e)
 		{
-			CheckUser(e.Member);
+			CheckPencil(e.Member);
 			return Task.CompletedTask;
 		}
 
@@ -294,14 +280,25 @@ namespace WordOfTheDay
 				_ = Task.Run(async () =>
 				{
 					IEnumerable<DiscordMember> members = await languageServer.GetAllMembersAsync();
+					int i = 0;
+					DiscordMessage msg = await e.Channel.SendMessageAsync($"Checking Users... This is going to take a while");
+					DateTime lastEdit = DateTime.Now;
 					foreach (DiscordMember member in members)
 					{
 						if (CheckUser(member))
 							Delay(100);
 						else
 							Delay(50);
+
+						i++;
+						if (DateTime.Now - lastEdit > TimeSpan.FromSeconds(8))
+						{
+							lastEdit = DateTime.Now;
+							msg.ModifyAsync($"Checking Users...\n{i} - Users Checked of {members.Count()}");
+						}
+
 					}
-					await e.Channel.SendMessageAsync("Checking Users...");
+					msg.ModifyAsync("All users have been checked");
 				});
 				return Task.CompletedTask;
 			}
@@ -377,21 +374,6 @@ namespace WordOfTheDay
 				}
 			}
 
-			if (mensaje.StartsWith("-removereactions") && isAdmin)
-			{
-				ulong channelid = 0;
-				ulong mensajeid = 0;
-				if (ulong.TryParse(mensaje.Split(' ')[1], out channelid) && ulong.TryParse(mensaje.Split(' ')[2], out mensajeid))
-				{
-					DiscordMessage DisMensaje = await languageServer.GetChannel(channelid).GetMessageAsync(mensajeid);
-					await DisMensaje.DeleteAllReactionsAsync();
-					await e.Channel.SendMessageAsync(EasyDualLanguageFormatting("Se han borrado las reacciones", "The reactions have been removed"));
-				} else
-				{
-					await e.Channel.SendMessageAsync(EasyDualLanguageFormatting("No se ha podido encontrar el mensaje, por favor comprueba las IDs", "The message couldn't be found. Please check the IDs"));
-				}
-
-			}
 
 			if (mensaje.StartsWith("-embed") && isAdmin)
 			{
@@ -473,24 +455,6 @@ namespace WordOfTheDay
 				UpdateUserCountChannel();
 			}
 
-			if (mensaje.StartsWith("-test"))
-			{
-				DiscordMember m = (DiscordMember)e.Author;
-				string output = "";
-				var roles = m.Roles;
-				foreach (var r in roles)
-				{
-					output += r.Name + "\n";
-				}
-				if (roles.Count() == 0)
-				{
-					e.Channel.SendMessageAsync("User has no roles");
-				} else
-				{
-					e.Channel.SendMessageAsync(output);
-				}
-			}
-
 			//END OF IF WALL
 			return Task.CompletedTask;
 		}
@@ -534,7 +498,7 @@ namespace WordOfTheDay
 
 			// let's check if the error is a result of lack
 			// of required permissions
-			if (e.Exception is ChecksFailedException ex)
+			if (e.Exception is ChecksFailedException)
 			{
 				// yes, the user lacks required permissions, 
 				// let them know
@@ -565,6 +529,7 @@ namespace WordOfTheDay
 			}
 			return Task.CompletedTask;
 		}
+
 
 		private Task Client_MessageReactionRemoved(DiscordClient sender, MessageReactionRemoveEventArgs e)
 		{
@@ -624,17 +589,39 @@ namespace WordOfTheDay
 		/// </summary>
 		/// <param name="member">The member to check</param>
 		/// <returns>True if it has done anychanges</returns>
-		private bool CheckUser(DiscordMember member)
+		private bool CheckUser(DiscordMember member) => CheckVC(member) || CheckPencil(member);
+
+		private bool CheckVC(DiscordMember member)
 		{
-			bool endsOnPencil = member.DisplayName.EndsWith(DiscordEmoji.FromName(Client, ":pencil:"));
-			bool isOnVC = member.VoiceState != null;
+
+			bool isOnVC = !(member.VoiceState is null); //if is not null. User is on VC
 			bool hasOnVCRole = false;
-			bool hasCorrectMeRole = false;
+			bool changesRealized = false;
+			//If it is on VC but it does not have the role. We give it to him
+			if (isOnVC && !hasOnVCRole)
+			{
+				member.GrantRoleAsync(onVC);
+				changesRealized = true;
+			}
+			//if it is NOT on VC but he has the role. We Remove it
+			if (!isOnVC && hasOnVCRole)
+			{
+				member.RevokeRoleAsync(onVC);
+				changesRealized = true;
+			}
+			return changesRealized;
+		}
+
+		private bool CheckPencil(DiscordMember member)
+		{
 			bool changesRealized = false;
 
+			bool endsOnPencil = member.DisplayName.EndsWith(DiscordEmoji.FromName(Client, ":pencil:"));
+			bool hasCorrectMeRole = false;
 			//Check bools role
+
 			if (member.Roles.Contains(CorrectMeRole)) hasCorrectMeRole = true;
-			if (member.Roles.Contains(onVC)) hasOnVCRole = true;
+
 
 			//check the pencil emoji on end
 			if (hasCorrectMeRole && !endsOnPencil)
@@ -663,18 +650,6 @@ namespace WordOfTheDay
 				changesRealized = true;
 			}
 
-			//If it is on VC but it does not have the role. We give it to him
-			if (isOnVC && !hasOnVCRole)
-			{
-				member.GrantRoleAsync(onVC);
-				changesRealized = true;
-			}
-			//if it is NOT on VC but he has the role. We Remove it
-			if (!isOnVC && hasOnVCRole)
-			{
-				member.RevokeRoleAsync(onVC);
-				changesRealized = true;
-			}
 			return changesRealized;
 		}
 
@@ -770,7 +745,8 @@ namespace WordOfTheDay
 		private string GenerateHelp(DiscordMember member)
 		{
 			bool admin = IsAdmin(member);
-			bool study = member.Roles.Contains(StudyRole);
+			//HACK Disabled SST
+			/*bool study = member.Roles.Contains(StudyRole);*/
 
 
 			//ESP
@@ -780,16 +756,15 @@ namespace WordOfTheDay
 			"\n-Roles: Recuerda a los usuarios que deben de ponerse los roles" +
 			"\n-Wote: Inicia una votacion" +
 			"\n-Version: Muestra la version del bot";
-			if (study) salida +=
+			/*if (study) salida +=
 					 "\n-***Study Session Tracker***" +
 					 "\n-Study *<Asignatura>*: Empieza una sesion de estudio" +
 					 "\n-AddHours *<Horas> <Asignatura>*: Añade horas a tu perfil" +
 					 "\n-GetHours: Obtiene tu tiempo estudiado total" +
-					 "\n-Ranking: Muestra los 5 mejores estudiantes";
+					 "\n-Ranking: Muestra los 5 mejores estudiantes";*/
 			if (admin) salida += "\n***Solo para administradores***" +
 					"\n-SendWOTD: Envia una nueva Palabra del dia" +
-			"\n-CheckPencils: Checkea todos los usuarios, y pone o quita el emoji :pencil: segun tenga o no el rol de `Correct Me`" +
-			"\n-RemoveReactions <Channel ID> <Message ID>: Borra todas las reacciones de un mensaje" +
+			"\n-CheckUsers: Checkea todos los usuarios, y pone o quita el emoji :pencil: segun tenga o no el rol de `Correct Me`" +
 			"\n-Embed: Transforma el mensaje enviado en un embed" +
 			"\n-UserCount: Actualiza el canal User count" +
 			"\n-AddEmoji: Añade un emoji al servidor" +
@@ -801,16 +776,15 @@ namespace WordOfTheDay
 			"\n-roles: reminds users to set up their roles" +
 			"\n-Wote: Starts a vote" +
 			"\n-Version: Shows the current version";
-			if (study) salida +=
+			/*if (study) salida +=
 				 "\n-***Study Session Tracker***" +
 				 "\n-Study *<Subject>*: Starts a study session" +
 				 "\n-AddHours *<Hours> <subject>*: Adds hours to your profile" +
 				 "\n-GetHours: Get your total time studied" +
-				 "\n-Ranking: Shows the top 5 students ";
+				 "\n-Ranking: Shows the top 5 students ";*/
 			if (admin) salida += "\n***Admin only***" +
 					"\n-SendWOTD: Sends a new Word of the day" +
 			"\n-CheckPencils: Checks all users and gives or removes the :pencil: emoji depending if the user has the `Correct Me` role" +
-			"\n-RemoveReactions <Channel ID> <Message ID>: Removes all the reactions from a message" +
 			"\n-Embed: Converts the message sent into an embed" +
 			"\n-UserCount: Updates the User count channel" +
 			"\n-AddEmoji: Adds an emoji to the server" +
@@ -861,12 +835,6 @@ namespace WordOfTheDay
 			return $":flag_es: {EScontent}\n:flag_gb: {ENcontent}";
 		}
 
-		private bool HasInternetConnection()
-		{
-			Ping sender = new Ping();
-			PingReply respuesta = sender.Send("discordapp.com");
-			return respuesta.Status.HasFlag(IPStatus.Success);
-		}
 
 		#endregion
 

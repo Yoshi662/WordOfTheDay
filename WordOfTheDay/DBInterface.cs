@@ -165,7 +165,7 @@ namespace WordOfTheDay
             }
         }
 
-        public Study_WorkSheet[] getRegsbyID(String ID)
+        public Study_WorkSheet[] GetRegsbyID(String ID)
         {
             List<Study_WorkSheet> regs = new List<Study_WorkSheet>();
             //SELECT Userid, CAST(((julianday(EndTime) - julianday(Starttime)) * 1440) AS integer) AS Hours FROM study_worksheet

@@ -145,7 +145,7 @@ namespace WordOfTheDay
             String userid = ctx.User.Id.ToString();
             TimeSpan horas = DBInterface.Instance.GetTotalHoursByID(userid);
 
-            Study_WorkSheet[] hours = DBInterface.Instance.getRegsbyID(userid);
+            Study_WorkSheet[] hours = DBInterface.Instance.GetRegsbyID(userid);
             int maxregs = hours.Length > 5 ? 5 : hours.Length;
             string des = $"Last {maxregs}\n";
             for (int i = 0; i < maxregs; i++)
