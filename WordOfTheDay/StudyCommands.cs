@@ -13,14 +13,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace WordOfTheDay
-{/*TODO LIST:
-  * Short
-  *  
-  * 
-  * Long: 
-  *  Comment all the code
-  * 
-  */
+{
     public class StudyCommands : BaseCommandModule
     {
         [Command("study"), RequireGuild()]

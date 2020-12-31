@@ -16,16 +16,17 @@ using DSharpPlus.Interactivity;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Exceptions;
 using DSharpPlus.Interactivity.Extensions;
+using System.Text.RegularExpressions;
+
 namespace WordOfTheDay
 {
 	public class Program
 	{
-		public readonly string version = "1.7.2";
-		public readonly string internalname = "Bye Study Session Tracker";
+		public readonly string version = "1.7.6";
+		public readonly string internalname = "Small Incremental Upgrades";
 		public DiscordClient Client { get; set; }
 		private static Program prog;
-		//HACK Disabled SST
-		//static CommandsNextExtension commands;
+		static CommandsNextExtension commands;
 
 		private DiscordGuild languageServer;
 
@@ -42,7 +43,6 @@ namespace WordOfTheDay
 		private DiscordRole CorrectMeRole;
 		private DiscordRole admin;
 		private DiscordRole onVC;
-		//HACK Disabled SST
 		private DiscordRole StudyRole;
 
 		private DiscordUser yoshi;
@@ -58,6 +58,7 @@ namespace WordOfTheDay
 		public Dictionary<ulong, Dictionary<String, ulong>> ReactionRole;
 
 		#region Main Logic
+
 		public static void Main(string[] args)
 		{
 			prog = new Program();
@@ -151,8 +152,8 @@ namespace WordOfTheDay
 					);
 				Delay();
 			}
-			//HACK Disabled SST
-			/*this.Client.UseInteractivity(new InteractivityConfiguration
+
+			this.Client.UseInteractivity(new InteractivityConfiguration
 			{
 				PaginationBehaviour = DSharpPlus.Interactivity.Enums.PaginationBehaviour.Ignore,
 				Timeout = TimeSpan.FromMinutes(2)
@@ -169,7 +170,7 @@ namespace WordOfTheDay
 			commands.RegisterCommands<StudyCommands>();
 
 			commands.CommandExecuted += this.Commands_CommandExecuted;
-			commands.CommandErrored += this.Commands_CommandErrored;*/
+			commands.CommandErrored += this.Commands_CommandErrored;
 
 			Thread WOTD = new Thread(() => SetUpTimer(14, 00));
 			WOTD.Start();
@@ -252,10 +253,7 @@ namespace WordOfTheDay
 			{
 				DiscordMember member = (DiscordMember)e.Author;
 				await member.SendMessageAsync(GenerateHelp(member));
-
-				await e.Message.RespondAsync(
-					DiscordEmoji.FromName(Client, ":flag_es:") + " Ayuda Enviada por mensaje privado\n"
-				  + DiscordEmoji.FromName(Client, ":flag_gb:") + " Help sent via direct message");
+				e.Message.CreateReactionAsync(DiscordEmoji.FromName(Client, ":white_check_mark:"));
 				return Task.CompletedTask;
 			}
 
@@ -265,6 +263,7 @@ namespace WordOfTheDay
 				if (confirmacion)
 				{
 					await SendWOTDAsync();
+					e.Message.CreateReactionAsync(DiscordEmoji.FromName(Client, ":white_check_mark:"));
 				}
 				return Task.CompletedTask;
 			}
@@ -281,7 +280,9 @@ namespace WordOfTheDay
 				{
 					IEnumerable<DiscordMember> members = await languageServer.GetAllMembersAsync();
 					int i = 0;
-					DiscordMessage msg = await e.Channel.SendMessageAsync($"Checking Users... This is going to take a while");
+					int max = members.Count();
+					DiscordMessage msg = await e.Channel.SendMessageAsync(null, false, 
+					HelperMethods.QuickEmbed($"Checking Users... This is going to take a while", $"{i}/{max}\n{HelperMethods.GenerateProgressBar(0)}"));
 					DateTime lastEdit = DateTime.Now;
 					foreach (DiscordMember member in members)
 					{
@@ -294,11 +295,11 @@ namespace WordOfTheDay
 						if (DateTime.Now - lastEdit > TimeSpan.FromSeconds(8))
 						{
 							lastEdit = DateTime.Now;
-							msg.ModifyAsync($"Checking Users...\n{i} - Users Checked of {members.Count()}");
+							msg.ModifyAsync(null, HelperMethods.QuickEmbed($"Checking Users...{i}/{max}", HelperMethods.GenerateProgressBar(((double)i / max))));
 						}
 
 					}
-					msg.ModifyAsync("All users have been checked");
+					msg.ModifyAsync(null, HelperMethods.QuickEmbed("All users have been checked"));
 				});
 				return Task.CompletedTask;
 			}
@@ -365,7 +366,7 @@ namespace WordOfTheDay
 				bool confirmacion = await VerificarAsync(e.Channel, e.Author, 15);
 				if (confirmacion)
 				{
-					await e.Channel.SendMessageAsync(EasyDualLanguageFormatting("Reiniciando Bot, por favor espere", "Restarting Bot, please wait"));
+					e.Message.CreateReactionAsync(DiscordEmoji.FromName(Client, ":white_check_mark:"));
 					Delay(1500);
 					Environment.Exit(0);
 				} else
@@ -453,6 +454,7 @@ namespace WordOfTheDay
 			if (mensaje.StartsWith("-usercount") && isAdmin)
 			{
 				UpdateUserCountChannel();
+				e.Message.CreateReactionAsync(DiscordEmoji.FromName(Client, ":white_check_mark:"));
 			}
 
 			//END OF IF WALL
@@ -584,11 +586,7 @@ namespace WordOfTheDay
 			}
 			return Task.CompletedTask;
 		}
-		/// <summary>
-		/// Checks if user has an emoji at the end of it's name if it has a role AND checks the OnVC if the user is on VC
-		/// </summary>
-		/// <param name="member">The member to check</param>
-		/// <returns>True if it has done anychanges</returns>
+
 		private bool CheckUser(DiscordMember member) => CheckVC(member) || CheckPencil(member);
 
 		private bool CheckVC(DiscordMember member)
@@ -612,6 +610,11 @@ namespace WordOfTheDay
 			return changesRealized;
 		}
 
+		/// <summary>
+		/// Checks if user has an emoji at the end of it's name if it has a role AND checks the OnVC if the user is on VC
+		/// </summary>
+		/// <param name="member">The member to check</param>
+		/// <returns>True if it has done anychanges</returns>
 		private bool CheckPencil(DiscordMember member)
 		{
 			bool changesRealized = false;
@@ -702,6 +705,7 @@ namespace WordOfTheDay
 		}
 		#endregion
 
+		//TODO mover estos metodos a HelperMethods.cs
 		#region helper methods
 		public static void Delay(int delay = 650)
 		{
@@ -745,8 +749,7 @@ namespace WordOfTheDay
 		private string GenerateHelp(DiscordMember member)
 		{
 			bool admin = IsAdmin(member);
-			//HACK Disabled SST
-			/*bool study = member.Roles.Contains(StudyRole);*/
+			bool study = member.Roles.Contains(StudyRole);
 
 
 			//ESP
@@ -756,12 +759,12 @@ namespace WordOfTheDay
 			"\n-Roles: Recuerda a los usuarios que deben de ponerse los roles" +
 			"\n-Wote: Inicia una votacion" +
 			"\n-Version: Muestra la version del bot";
-			/*if (study) salida +=
+			if (study) salida +=
 					 "\n-***Study Session Tracker***" +
 					 "\n-Study *<Asignatura>*: Empieza una sesion de estudio" +
 					 "\n-AddHours *<Horas> <Asignatura>*: Añade horas a tu perfil" +
 					 "\n-GetHours: Obtiene tu tiempo estudiado total" +
-					 "\n-Ranking: Muestra los 5 mejores estudiantes";*/
+					 "\n-Ranking: Muestra los 5 mejores estudiantes";
 			if (admin) salida += "\n***Solo para administradores***" +
 					"\n-SendWOTD: Envia una nueva Palabra del dia" +
 			"\n-CheckUsers: Checkea todos los usuarios, y pone o quita el emoji :pencil: segun tenga o no el rol de `Correct Me`" +
@@ -776,12 +779,12 @@ namespace WordOfTheDay
 			"\n-roles: reminds users to set up their roles" +
 			"\n-Wote: Starts a vote" +
 			"\n-Version: Shows the current version";
-			/*if (study) salida +=
+			if (study) salida +=
 				 "\n-***Study Session Tracker***" +
 				 "\n-Study *<Subject>*: Starts a study session" +
 				 "\n-AddHours *<Hours> <subject>*: Adds hours to your profile" +
 				 "\n-GetHours: Get your total time studied" +
-				 "\n-Ranking: Shows the top 5 students ";*/
+				 "\n-Ranking: Shows the top 5 students ";
 			if (admin) salida += "\n***Admin only***" +
 					"\n-SendWOTD: Sends a new Word of the day" +
 			"\n-CheckPencils: Checks all users and gives or removes the :pencil: emoji depending if the user has the `Correct Me` role" +
@@ -833,6 +836,22 @@ namespace WordOfTheDay
 		private string EasyDualLanguageFormatting(string EScontent, string ENcontent)
 		{
 			return $":flag_es: {EScontent}\n:flag_gb: {ENcontent}";
+		}
+
+		/// <summary>
+		/// Check if a message contains SST and if it has enough info to process a entry in the database
+		/// </summary>
+		/// <param name="content">Message with all the info</param>
+		/// <param name="sst"></param>
+		/// <returns>True if it can return a SST</returns>
+		private bool CheckSSTMessage(DiscordMessage msg, out Study_WorkSheet sst){
+			//Just in case is null we create it
+			sst = new Study_WorkSheet("0", "NULL", DateTime.MinValue, DateTime.MinValue);
+			string content = msg.Content.ToLower();
+
+			//Regex sst_regex = new Regex();
+
+			return false;
 		}
 
 
