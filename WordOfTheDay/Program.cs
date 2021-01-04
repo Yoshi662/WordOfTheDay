@@ -22,8 +22,8 @@ namespace WordOfTheDay
 {
 	public class Program
 	{
-		public readonly string version = "1.7.6";
-		public readonly string internalname = "Small Incremental Upgrades";
+		public readonly string version = "1.8.0";
+		public readonly string internalname = "News News!";
 		public DiscordClient Client { get; set; }
 		private static Program prog;
 		static CommandsNextExtension commands;
@@ -568,8 +568,10 @@ namespace WordOfTheDay
 			embedBuilder.WithColor(new DiscordColor("#970045"));
 
 			DiscordEmbed embed = embedBuilder.Build();
-			await languagechannel.SendMessageAsync(WOTDrole.Mention, false, embed);
-
+			languagechannel.CrosspostMessageAsync(
+				languagechannel.SendMessageAsync(WOTDrole.Mention, false, embed).Result
+			);
+			
 			return Task.CompletedTask;
 		}
 
