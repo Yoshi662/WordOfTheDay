@@ -244,7 +244,7 @@ namespace WordOfTheDay
 				role => role == EnglishNative || role == SpanishNative || role == OtherNative
 				).Any();
 
-				if (hasroles)
+				if (!hasroles)
 				{
 					await member.SendMessageAsync(EasyDualLanguageFormatting(
 					"Nos hemos dado cuenta que no tienes los roles de nativo, puedes obtenerlos en #roles." +
