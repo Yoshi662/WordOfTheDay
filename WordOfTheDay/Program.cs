@@ -22,8 +22,8 @@ namespace WordOfTheDay
 {
 	public class Program
 	{
-		public readonly string version = "1.8.0";
-		public readonly string internalname = "News News!";
+		public readonly string version = "1.9.0";
+		public readonly string internalname = "Personal Reminders for people that cannot read";
 		public DiscordClient Client { get; set; }
 		private static Program prog;
 		static CommandsNextExtension commands;
@@ -38,12 +38,16 @@ namespace WordOfTheDay
 		private DiscordChannel botupdates;
 		private DiscordChannel modlog;
 		private DiscordChannel usercount;
+		private DiscordChannel introductions;
 
 		private DiscordRole WOTDrole;
 		private DiscordRole CorrectMeRole;
 		private DiscordRole admin;
 		private DiscordRole onVC;
 		private DiscordRole StudyRole;
+		private DiscordRole EnglishNative;
+		private DiscordRole SpanishNative;
+		private DiscordRole OtherNative;
 
 		private DiscordUser yoshi;
 
@@ -103,6 +107,10 @@ namespace WordOfTheDay
 
 			languagechannel = await Client.GetChannelAsync(ulong.Parse(cfgjson.WOTDChannel)); //Channel which recieves updates
 			languageServer = await Client.GetGuildAsync(ulong.Parse(cfgjson.LanguageServer)); //Server
+			introductions = await Client.GetChannelAsync(ulong.Parse(cfgjson.Introductions));
+			EnglishNative = languageServer.GetRole(ulong.Parse(cfgjson.EnglishNative));
+			SpanishNative = languageServer.GetRole(ulong.Parse(cfgjson.SpanishNative));
+			OtherNative = languageServer.GetRole(ulong.Parse(cfgjson.OtherNative));
 			WOTDrole = languageServer.GetRole(ulong.Parse(cfgjson.WOTDRole)); //WOTD role
 			CorrectMeRole = languageServer.GetRole(ulong.Parse(cfgjson.CorrectMeRole)); //CorrectMe Role
 			onVC = languageServer.GetRole(ulong.Parse(cfgjson.OnVC));
@@ -217,6 +225,7 @@ namespace WordOfTheDay
 
 		private async Task<Task> Client_MessageCreated(DiscordClient sender, MessageCreateEventArgs e)
 		{
+			if (e.Author.IsBot || e.Author.IsCurrent) return Task.CompletedTask;
 			//Esto es horrible pero bueno
 			string mensaje = e.Message.Content.ToLower();
 
@@ -228,6 +237,24 @@ namespace WordOfTheDay
 				await WoteAsync(e.Message, true);
 			}
 
+			if (e.Channel == introductions)
+			{
+				DiscordMember member = (DiscordMember)e.Author;
+				bool hasroles = member.Roles.Where(
+				role => role == EnglishNative || role == SpanishNative || role == OtherNative
+				).Any();
+
+				if (hasroles)
+				{
+					await member.SendMessageAsync(EasyDualLanguageFormatting(
+					"Nos hemos dado cuenta que no tienes los roles de nativo, puedes obtenerlos en #roles." +
+	   "**Necesitas un rol de nativo para interactuar en el servidor.**" +
+	   "Si tienes algun problema puedes preguntar a algun miembro del staff.",
+	   "We've noticed that you don't have any native roles, you can grab them in #roles." +
+	   "**You need a native role to interact on the server.**" +
+	   "If You're having trouble feel free to ask anyone from the staff team."));
+				}
+			}
 
 			if (!mensaje.StartsWith("-")) return Task.CompletedTask; //OPTIMIZAAAAAAR    
 
@@ -281,7 +308,7 @@ namespace WordOfTheDay
 					IEnumerable<DiscordMember> members = await languageServer.GetAllMembersAsync();
 					int i = 0;
 					int max = members.Count();
-					DiscordMessage msg = await e.Channel.SendMessageAsync(null, false, 
+					DiscordMessage msg = await e.Channel.SendMessageAsync(null, false,
 					HelperMethods.QuickEmbed($"Checking Users... This is going to take a while", $"{i}/{max}\n{HelperMethods.GenerateProgressBar(0)}"));
 					DateTime lastEdit = DateTime.Now;
 					foreach (DiscordMember member in members)
@@ -392,7 +419,7 @@ namespace WordOfTheDay
 					isfilenamevaild = file.FileName.Equals("message.txt");
 					string FileName = DateTime.Now.Ticks.ToString("X16") + @".txt"; //https://stackoverflow.com/questions/7874111/convert-datetime-now-to-a-valid-windows-filename => I hate the world
 
-					using (var client = new WebClient())
+					using (WebClient client = new WebClient())
 					{
 						client.DownloadFile(file.Url, FileName);
 					}
@@ -426,7 +453,7 @@ namespace WordOfTheDay
 
 				return Task.CompletedTask;
 			}
-			if (mensaje.StartsWith("-addemoji") && isAdmin)
+			if (mensaje.StartsWith("-https://cdn.discordapp.com/attachments/479257969427611649/803398998710681690/b.png") && isAdmin)
 			{
 
 				String[] imageformats = { "png", "jpg", "gif", "WebP" };
@@ -505,10 +532,10 @@ namespace WordOfTheDay
 				// yes, the user lacks required permissions, 
 				// let them know
 
-				var emoji = DiscordEmoji.FromName(e.Context.Client, ":no_entry:");
+				DiscordEmoji emoji = DiscordEmoji.FromName(e.Context.Client, ":no_entry:");
 
 				// let's wrap the response into an embed
-				var embed = new DiscordEmbedBuilder
+				DiscordEmbedBuilder embed = new DiscordEmbedBuilder
 				{
 					Title = "Access denied",
 					Description = $"{emoji} You do not have the permissions required to execute this command.",
@@ -571,7 +598,7 @@ namespace WordOfTheDay
 			languagechannel.CrosspostMessageAsync(
 				languagechannel.SendMessageAsync(WOTDrole.Mention, false, embed).Result
 			);
-			
+
 			return Task.CompletedTask;
 		}
 
@@ -583,7 +610,6 @@ namespace WordOfTheDay
 			if (dunno)
 			{
 				Delay();
-
 				message.CreateReactionAsync(DiscordEmoji.FromGuildEmote(Client, 614346797141458974));
 			}
 			return Task.CompletedTask;
@@ -846,7 +872,8 @@ namespace WordOfTheDay
 		/// <param name="content">Message with all the info</param>
 		/// <param name="sst"></param>
 		/// <returns>True if it can return a SST</returns>
-		private bool CheckSSTMessage(DiscordMessage msg, out Study_WorkSheet sst){
+		private bool CheckSSTMessage(DiscordMessage msg, out Study_WorkSheet sst)
+		{
 			//Just in case is null we create it
 			sst = new Study_WorkSheet("0", "NULL", DateTime.MinValue, DateTime.MinValue);
 			string content = msg.Content.ToLower();
@@ -879,6 +906,9 @@ namespace WordOfTheDay
 			[JsonProperty("CorrectMeRole")]
 			public string CorrectMeRole { get; private set; }
 
+			[JsonProperty("Introductions")]
+			public string Introductions { get; private set; }
+
 			[JsonProperty("Suggestions")]
 			public string Suggestions { get; private set; }
 
@@ -902,6 +932,15 @@ namespace WordOfTheDay
 
 			[JsonProperty("StudyRole")]
 			public string StudyRole { get; private set; }
+
+			[JsonProperty("SpanishNative")]
+			public string SpanishNative { get; private set; }
+
+			[JsonProperty("EnglishNative")]
+			public string EnglishNative { get; private set; }
+
+			[JsonProperty("OtherNative")]
+			public string OtherNative { get; private set; }
 
 			[JsonProperty("Admin")]
 			public string Admin { get; private set; }
