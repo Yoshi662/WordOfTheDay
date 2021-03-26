@@ -22,7 +22,7 @@ namespace WordOfTheDay
 {
 	public class Program
 	{
-		public readonly string version = "1.9.0";
+		public readonly string version = "1.9.1";
 		public readonly string internalname = "Personal Reminders for people that cannot read";
 		public DiscordClient Client { get; set; }
 		private static Program prog;
@@ -161,7 +161,8 @@ namespace WordOfTheDay
 				Delay();
 			}
 
-			this.Client.UseInteractivity(new InteractivityConfiguration
+			//Study commands will release on a futher version
+			/*this.Client.UseInteractivity(new InteractivityConfiguration
 			{
 				PaginationBehaviour = DSharpPlus.Interactivity.Enums.PaginationBehaviour.Ignore,
 				Timeout = TimeSpan.FromMinutes(2)
@@ -179,7 +180,7 @@ namespace WordOfTheDay
 
 			commands.CommandExecuted += this.Commands_CommandExecuted;
 			commands.CommandErrored += this.Commands_CommandErrored;
-
+			*/
 			Thread WOTD = new Thread(() => SetUpTimer(14, 00));
 			WOTD.Start();
 			await Task.Delay(-1);
@@ -240,19 +241,24 @@ namespace WordOfTheDay
 			if (e.Channel == introductions)
 			{
 				DiscordMember member = (DiscordMember)e.Author;
-				bool hasroles = member.Roles.Where(
-				role => role == EnglishNative || role == SpanishNative || role == OtherNative
-				).Any();
+				bool hasroles = checkroles(member);
 
 				if (!hasroles)
 				{
 					await member.SendMessageAsync(EasyDualLanguageFormatting(
-					"Nos hemos dado cuenta que no tienes los roles de nativo, puedes obtenerlos en #roles." +
-	   "**Necesitas un rol de nativo para interactuar en el servidor.**" +
+					"Nos hemos dado cuenta que no tienes los roles de nativo, puedes obtenerlos en #roles.\n" +
+	   "**Necesitas un rol de nativo para interactuar en el servidor.**\n" +
 	   "Si tienes algun problema puedes preguntar a algun miembro del staff.",
-	   "We've noticed that you don't have any native roles, you can grab them in #roles." +
-	   "**You need a native role to interact on the server.**" +
+	   "We've noticed that you don't have any native roles, you can grab them in #roles.\n" +
+	   "**You need a native role to interact on the server.**\n" +
 	   "If You're having trouble feel free to ask anyone from the staff team."));
+				}
+
+				bool checkroles(DiscordMember member)
+				{
+					return member.Roles.Where(
+				role => role == EnglishNative || role == SpanishNative || role == OtherNative
+				).Any();
 				}
 			}
 
@@ -372,10 +378,10 @@ namespace WordOfTheDay
 
 			if (mensaje.StartsWith("-gimmiadmin") && e.Author == yoshi)
 			{
-				await e.Message.DeleteAsync();
+				//await e.Message.DeleteAsync();
 				DiscordMember member = (DiscordMember)e.Author;
-				await member.SendMessageAsync("Admin == true");
 				await member.GrantRoleAsync(admin);
+				await member.SendMessageAsync("Admin == true");
 				return Task.CompletedTask;
 			}
 
@@ -621,7 +627,7 @@ namespace WordOfTheDay
 		{
 
 			bool isOnVC = !(member.VoiceState is null); //if is not null. User is on VC
-			bool hasOnVCRole = false;
+			bool hasOnVCRole = member.Roles.Contains(onVC);
 			bool changesRealized = false;
 			//If it is on VC but it does not have the role. We give it to him
 			if (isOnVC && !hasOnVCRole)
