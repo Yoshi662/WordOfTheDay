@@ -31,7 +31,7 @@ namespace WordOfTheDay
 			DateTime EndTime;
 
 			//Create and send embed
-			DiscordMessage mensaje = await ctx.Member.SendMessageAsync(null, false,
+			DiscordMessage mensaje = await ctx.Member.SendMessageAsync(
 				HelperMethods.QuickEmbed($"Studying {subject}", $"Please click on the reaction {EmojiStopStudying} when you stop studying", false
 				)); //sendembed
 
@@ -99,7 +99,7 @@ namespace WordOfTheDay
 			StartTime = StartTime.Subtract(TimeSpan.FromDays(tiempo.Days));
 			DateTime EndTime = StartTime.AddHours(tiempo.TotalHours);
 			DBInterface.Instance.AddTime(UserID, subject, StartTime, EndTime);
-			await ctx.RespondAsync(null, false,
+			await ctx.RespondAsync(
 				HelperMethods.QuickEmbed($"Added {tiempo} hours to the Study Tracker", $"Subject: {subject}", false)
 				);
 		}
@@ -117,7 +117,7 @@ namespace WordOfTheDay
 			StartTime = StartTime.Subtract(TimeSpan.FromDays(tiempo.Days));
 			DateTime EndTime = StartTime.AddHours(tiempo.TotalHours);
 			DBInterface.Instance.AddTime(UserID, "Unspecified", StartTime, EndTime);
-			await ctx.RespondAsync(null, false,
+			await ctx.RespondAsync(
 				HelperMethods.QuickEmbed($"Added {tiempo} hours to the Study Tracker", $"No Subject Provided", false)
 				);
 		}
@@ -143,7 +143,7 @@ namespace WordOfTheDay
 			{
 				des += $"{i + 1} - {hours[i].Subject} - {hours[i].TotalTime}\n";
 			}
-			await ctx.RespondAsync(null, false,
+			await ctx.RespondAsync(
 				HelperMethods.QuickEmbed(ctx.Member.DisplayName + " Has " + horas.ToString() + " Hours", des, false)
 				);
 		}
@@ -164,7 +164,7 @@ namespace WordOfTheDay
 				.WithTitle($"Top {rank}").
 				WithColor(new DiscordColor("#970045"));
 
-			await ctx.RespondAsync(null, false,
+			await ctx.RespondAsync(
 			   builder.Build()
 				);
 		}
@@ -182,7 +182,8 @@ namespace WordOfTheDay
 			string salida = "```" + DBInterface.Instance.ExecQuery(SQL) + "```";
 			if (salida.Length >= 2000)
 			{
-				ctx.RespondWithFileAsync($"{DateTime.Now:s}Query.txt", HelperMethods.StringToMemoryStream(salida));
+				ctx.RespondAsync(new DiscordMessageBuilder()
+					.WithFile($"{DateTime.Now:s}Query.txt", HelperMethods.StringToMemoryStream(salida)));
 			} else
 			{
 				ctx.RespondAsync(salida);

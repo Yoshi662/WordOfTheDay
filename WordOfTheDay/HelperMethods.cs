@@ -66,5 +66,12 @@ namespace WordOfTheDay
 			double completed_PB = percentage * max_size;
 			return $"*{new string('▰', (int)completed_PB) + new string('▱', max_size - (int)completed_PB)}*{$" - **[{percentage:P}]**"}";
 		}
+		/// <summary>
+		/// It sleeps the program for a certain amount of time
+		/// <para>Helpful to evade ratelimits</para>
+		/// </summary>
+		/// <param name="ms">Time in miliseconds of which program will be paused</param>
+		public static void Delay(int ms = 500) => System.Threading.Thread.Sleep(ms);
+		public static void Delay(TimeSpan timeSpan) => System.Threading.Thread.Sleep(timeSpan.Milliseconds);
 	}
 }

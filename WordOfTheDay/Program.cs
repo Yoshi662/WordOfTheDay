@@ -22,8 +22,8 @@ namespace WordOfTheDay
 {
 	public class Program
 	{
-		public readonly string version = "1.9.1";
-		public readonly string internalname = "Personal Reminders for people that cannot read";
+		public readonly string version = "1.9.2";
+		public readonly string internalname = "Update, Update, Update";
 		public DiscordClient Client { get; set; }
 		private static Program prog;
 		static CommandsNextExtension commands;
@@ -150,19 +150,25 @@ namespace WordOfTheDay
 				if (lastExceptionDatetime != null) { builder.WithTimestamp(lastExceptionDatetime); };
 
 
+				await botupdates.SendMessageAsync(
+					new DiscordMessageBuilder()
+						.WithContent(
+						"**Bot Breaking Exception**  -  " + lastExceptionDatetime.ToString("yyyy-mm-dd HH_mm_ss") + " - " + yoshi.Mention
+						)
+						.WithFile(
+							lastExceptionDatetime.ToString("s") + "WOTD_EX_StackTrace.txt",
+							new MemoryStream(Encoding.UTF8.GetBytes(lastException.InnerException.StackTrace))
+						)
+						.WithEmbed(
+							builder.Build()
+						)
+				);
 
-				await botupdates.SendFileAsync(
-					lastExceptionDatetime.ToString("s") + "WOTD_EX_StackTrace.txt",
-					new MemoryStream(Encoding.UTF8.GetBytes(lastException.InnerException.StackTrace)),
-						"**Bot Breaking Exception**  -  " + lastExceptionDatetime.ToString("yyyy-mm-dd HH_mm_ss") + " - " + yoshi.Mention,
-					false,
-					builder.Build()
-					);
-				Delay();
+				HelperMethods.Delay();
 			}
 
-			//Study commands will release on a futher version
-			/*this.Client.UseInteractivity(new InteractivityConfiguration
+			
+			this.Client.UseInteractivity(new InteractivityConfiguration
 			{
 				PaginationBehaviour = DSharpPlus.Interactivity.Enums.PaginationBehaviour.Ignore,
 				Timeout = TimeSpan.FromMinutes(2)
@@ -176,11 +182,11 @@ namespace WordOfTheDay
 				IgnoreExtraArguments = true
 			});
 
-			commands.RegisterCommands<StudyCommands>();
-
+			//commands.RegisterCommands<StudyCommands>();
+			commands.RegisterCommands<WOTDCommands>();
 			commands.CommandExecuted += this.Commands_CommandExecuted;
 			commands.CommandErrored += this.Commands_CommandErrored;
-			*/
+			
 			Thread WOTD = new Thread(() => SetUpTimer(14, 00));
 			WOTD.Start();
 			await Task.Delay(-1);
@@ -206,11 +212,11 @@ namespace WordOfTheDay
 		private Task Client_GuildMemberAdded(DiscordClient sender, GuildMemberAddEventArgs e)
 		{
 			DiscordMember miembro = e.Member;
-			modlog.SendMessageAsync(null, false, HelperMethods.QuickEmbed($"New Member: {miembro.Username}#{miembro.Discriminator}",
+			modlog.SendMessageAsync(HelperMethods.QuickEmbed($"New Member: {miembro.Username}#{miembro.Discriminator}",
 				$"Discord ID: {miembro.Id}\n" +
 				$"Fecha de creacion de cuenta: {miembro.CreationTimestamp}",
 				false
-				), null);
+				));
 			return Task.CompletedTask;
 		}
 
@@ -303,7 +309,7 @@ namespace WordOfTheDay
 
 			if (mensaje.StartsWith("-version"))
 			{
-				await e.Channel.SendMessageAsync("", false, GetVersionEmbed());
+				await e.Channel.SendMessageAsync(GetVersionEmbed());
 				return Task.CompletedTask;
 			}
 
@@ -314,15 +320,15 @@ namespace WordOfTheDay
 					IEnumerable<DiscordMember> members = await languageServer.GetAllMembersAsync();
 					int i = 0;
 					int max = members.Count();
-					DiscordMessage msg = await e.Channel.SendMessageAsync(null, false,
+					DiscordMessage msg = await e.Channel.SendMessageAsync(
 					HelperMethods.QuickEmbed($"Checking Users... This is going to take a while", $"{i}/{max}\n{HelperMethods.GenerateProgressBar(0)}"));
 					DateTime lastEdit = DateTime.Now;
 					foreach (DiscordMember member in members)
 					{
 						if (CheckUser(member))
-							Delay(100);
+							HelperMethods.Delay(100);
 						else
-							Delay(50);
+							HelperMethods.Delay(50);
 
 						i++;
 						if (DateTime.Now - lastEdit > TimeSpan.FromSeconds(8))
@@ -355,7 +361,7 @@ namespace WordOfTheDay
 						{
 							ischecked = true;
 							await MensajeLocal.CreateReactionAsync(DiscordEmoji.FromName(Client, ":thinking:"));
-							Delay();
+							HelperMethods.Delay();
 							await MensajeLocal.DeleteOwnReactionAsync(DiscordEmoji.FromName(Client, ":thinking:"));
 							await senderMember.SendMessageAsync($"El usuario {nickname} **No** ha bloqueado al bot");
 						}
@@ -400,7 +406,7 @@ namespace WordOfTheDay
 				if (confirmacion)
 				{
 					e.Message.CreateReactionAsync(DiscordEmoji.FromName(Client, ":white_check_mark:"));
-					Delay(1500);
+					HelperMethods.Delay(1500);
 					Environment.Exit(0);
 				} else
 				{
@@ -434,7 +440,7 @@ namespace WordOfTheDay
 					File.Delete(FileName);
 				}
 
-				Delay(350);
+				HelperMethods.Delay(350);
 
 
 				await e.Message.DeleteAsync();
@@ -442,18 +448,21 @@ namespace WordOfTheDay
 				{
 					if (!hasfile)
 					{
-						await e.Channel.SendMessageAsync(null, false, HelperMethods.QuickEmbed($"Embed de {member.Nickname ?? member.DisplayName: member.Nickname}", message, false));
+						await e.Channel.SendMessageAsync(HelperMethods.QuickEmbed($"Embed de {member.Nickname ?? member.DisplayName: member.Nickname}", message, false));
 					} else if (hasfile && isfilenamevaild)
 					{
-						await e.Channel.SendMessageAsync(null, false, HelperMethods.QuickEmbed($"Embed de {member.Nickname ?? member.DisplayName: member.Nickname}", filecontent, false));
+						await e.Channel.SendMessageAsync(HelperMethods.QuickEmbed($"Embed de {member.Nickname ?? member.DisplayName: member.Nickname}", filecontent, false));
 					}
 				}
 				catch (Exception ex)
 				{
-					await botupdates.SendMessageAsync("Excepcion con un Embed", false, GenerateErrorEmbed(ex));
-					DiscordMessage errorembed = await e.Channel.SendMessageAsync(null, false, HelperMethods.QuickEmbed(":warning: Error :warning:",
+					await botupdates.SendMessageAsync(new DiscordMessageBuilder()
+						.WithContent("Excepcion con un Embed")
+						.WithEmbed(GenerateErrorEmbed(ex))
+						);
+					DiscordMessage errorembed = await e.Channel.SendMessageAsync(HelperMethods.QuickEmbed(":warning: Error :warning:",
 						 EasyDualLanguageFormatting("Mensaje demasiado largo o contiene caracteres no validos", "Message too large or has invalid characters"), false, "#FF0000"));
-					Delay(5000);
+					HelperMethods.Delay(5000);
 					await errorembed.DeleteAsync();
 				}
 
@@ -480,7 +489,7 @@ namespace WordOfTheDay
 				} else
 				{
 					await e.Message.DeleteAsync();
-					await e.Channel.SendMessageAsync(null, false, HelperMethods.QuickEmbed("No se puedo añadir el emoji", "Puede que no tenga el formato correcto[png, jpg, gif, WebP]\nUso:-Addemoji<URL> < Nombre_emoji >", false, "#ff0000"));
+					await e.Channel.SendMessageAsync(HelperMethods.QuickEmbed("No se puedo añadir el emoji", "Puede que no tenga el formato correcto[png, jpg, gif, WebP]\nUso:-Addemoji<URL> < Nombre_emoji >", false, "#ff0000"));
 				}
 			}
 
@@ -602,7 +611,9 @@ namespace WordOfTheDay
 
 			DiscordEmbed embed = embedBuilder.Build();
 			languagechannel.CrosspostMessageAsync(
-				languagechannel.SendMessageAsync(WOTDrole.Mention, false, embed).Result
+				languagechannel.SendMessageAsync(new DiscordMessageBuilder()
+				.WithContent(WOTDrole.Mention)
+				.WithEmbed(embed)).Result
 			);
 
 			return Task.CompletedTask;
@@ -611,11 +622,11 @@ namespace WordOfTheDay
 		private Task WoteAsync(DiscordMessage message, bool dunno = false)
 		{
 			message.CreateReactionAsync(DiscordEmoji.FromName(Client, ":white_check_mark:"));
-			Delay();
+			HelperMethods.Delay();
 			message.CreateReactionAsync(DiscordEmoji.FromName(Client, ":x:"));
 			if (dunno)
 			{
-				Delay();
+				HelperMethods.Delay();
 				message.CreateReactionAsync(DiscordEmoji.FromGuildEmote(Client, 614346797141458974));
 			}
 			return Task.CompletedTask;
@@ -721,7 +732,7 @@ namespace WordOfTheDay
 
 				TimeSpan diff = proximoWOTD - now;
 
-				Delay((int)diff.TotalMilliseconds);
+				HelperMethods.Delay((int)diff.TotalMilliseconds);
 				UpdateUserCountChannel();
 				SendWOTDAsync();
 			}
@@ -741,10 +752,8 @@ namespace WordOfTheDay
 
 		//TODO mover estos metodos a HelperMethods.cs
 		#region helper methods
-		public static void Delay(int delay = 650)
-		{
-			System.Threading.Thread.Sleep(delay);
-		}
+		
+		
 		private DiscordEmbed GetVersionEmbed()
 		{
 			DiscordEmbedBuilder embedBuilder = new DiscordEmbedBuilder();
@@ -845,7 +854,7 @@ namespace WordOfTheDay
 		{
 			DiscordMessage verificacion = await channel.SendMessageAsync(EasyDualLanguageFormatting("¿Estas seguro?", "Are you sure?"));
 			await WoteAsync(verificacion, false);
-			Delay(1000);
+			HelperMethods.Delay(1000);
 			for (int i = 0; i < time; i++)
 			{
 				IReadOnlyList<DiscordUser> reaccionesOK = await verificacion.GetReactionsAsync(DiscordEmoji.FromName(Client, ":white_check_mark:"));
@@ -860,7 +869,7 @@ namespace WordOfTheDay
 					await verificacion.DeleteAsync();
 					return false;
 				}
-				Delay(1000);
+				HelperMethods.Delay(1000);
 			}
 
 			await verificacion.DeleteAsync();
