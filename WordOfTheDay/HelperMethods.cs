@@ -132,7 +132,6 @@ namespace WordOfTheDay
 			embedBuilder.WithTitle("Word of the Day");
 			embedBuilder.WithUrl(WOTD.link);
 			embedBuilder.WithThumbnail("https://cdn.discordapp.com/attachments/477632242190123027/603763546836303899/dummy.png");
-			embedBuilder.WithFooter("A Yoshi's bot", "https://i.imgur.com/rT9YocG.jpg");
 			embedBuilder.AddField(":flag_es: - " + WOTD.es_word, $"{WOTD.es_sentence}", true);
 			embedBuilder.AddField(":flag_gb: - " + WOTD.en_word, $"{WOTD.en_sentence}", true);
 			embedBuilder.WithColor(new DiscordColor("#970045"));
