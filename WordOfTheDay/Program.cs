@@ -184,12 +184,6 @@ namespace WordOfTheDay
 		#endregion
 
 		#region events
-		private Task Client_GuildMemberUpdated(DiscordClient sender, GuildMemberUpdateEventArgs e)
-		{
-			CheckPencil(e.Member);
-			return Task.CompletedTask;
-		}
-
 		private async Task<Task> Client_MessageCreated(DiscordClient sender, MessageCreateEventArgs e)
 		{
 			if (e.Author.IsBot || e.Author.IsCurrent) return Task.CompletedTask;
