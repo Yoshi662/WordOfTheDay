@@ -68,7 +68,6 @@ namespace WordOfTheDay
 
 			this.Client = new DiscordClient(cfg);
 
-			this.Client.Ready += Client_Ready;
 			this.Client.GuildAvailable += Client_GuildAvailable;
 			this.Client.ClientErrored += Client_ClientError;
 			this.Client.MessageCreated += Client_MessageCreated;
@@ -115,10 +114,6 @@ namespace WordOfTheDay
 						.WithContent(
 						"**Bot Breaking Exception**  -  " + lastExceptionDatetime.ToString("yyyy-mm-dd HH_mm_ss") + " - " + languageServer.yoshi.Mention
 						)
-						.WithFile(
-							lastExceptionDatetime.ToString("s") + "WOTD_EX_StackTrace.txt",
-							new MemoryStream(Encoding.UTF8.GetBytes(lastException.InnerException.StackTrace))
-						)
 						.WithEmbed(
 							builder.Build()
 						)
@@ -127,7 +122,7 @@ namespace WordOfTheDay
 				HelperMethods.Delay();
 			}
 
-			
+
 			this.Client.UseInteractivity(new InteractivityConfiguration
 			{
 				PaginationBehaviour = DSharpPlus.Interactivity.Enums.PaginationBehaviour.Ignore,
@@ -146,7 +141,7 @@ namespace WordOfTheDay
 			commands.RegisterCommands<WOTDCommands>();
 			commands.CommandExecuted += this.Commands_CommandExecuted;
 			commands.CommandErrored += this.Commands_CommandErrored;
-			
+
 			Thread WOTD = new Thread(() => SetUpTimer(14, 00));
 			WOTD.Start();
 			await Task.Delay(-1);
@@ -161,7 +156,8 @@ namespace WordOfTheDay
 			if (isuserconnected)
 			{
 				member.GrantRoleAsync(languageServer.onVC);
-			} else
+			}
+			else
 			{
 				member.RevokeRoleAsync(languageServer.onVC);
 			}
@@ -260,7 +256,7 @@ namespace WordOfTheDay
 
 			if (mensaje.StartsWith("-sendwotd") && isAdmin)
 			{
-				bool confirmacion = await HelperMethods.VerificarAsync(e.Channel, e.Author,Client, 15);
+				bool confirmacion = await HelperMethods.VerificarAsync(e.Channel, e.Author, Client, 15);
 				if (confirmacion)
 				{
 					await SendWOTDAsync();
@@ -370,7 +366,8 @@ namespace WordOfTheDay
 					e.Message.CreateReactionAsync(DiscordEmoji.FromName(Client, ":white_check_mark:"));
 					HelperMethods.Delay(1500);
 					Environment.Exit(0);
-				} else
+				}
+				else
 				{
 					await e.Message.DeleteAsync();
 				}
@@ -411,7 +408,8 @@ namespace WordOfTheDay
 					if (!hasfile)
 					{
 						await e.Channel.SendMessageAsync(HelperMethods.QuickEmbed($"Embed de {member.Nickname ?? member.DisplayName: member.Nickname}", message, false));
-					} else if (hasfile && isfilenamevaild)
+					}
+					else if (hasfile && isfilenamevaild)
 					{
 						await e.Channel.SendMessageAsync(HelperMethods.QuickEmbed($"Embed de {member.Nickname ?? member.DisplayName: member.Nickname}", filecontent, false));
 					}
@@ -448,7 +446,8 @@ namespace WordOfTheDay
 						await e.Channel.SendMessageAsync(guildEmoji.ToString());
 						File.Delete(filepath);
 					}
-				} else
+				}
+				else
 				{
 					await e.Message.DeleteAsync();
 					await e.Channel.SendMessageAsync(HelperMethods.QuickEmbed("No se puedo añadir el emoji", "Puede que no tenga el formato correcto[png, jpg, gif, WebP]\nUso:-Addemoji<URL> < Nombre_emoji >", false, "#ff0000"));
@@ -465,15 +464,9 @@ namespace WordOfTheDay
 			return Task.CompletedTask;
 		}
 
-		private Task Client_Ready(DiscordClient sender, ReadyEventArgs e)
-		{
-			sender.Logger.LogInformation("Client is ready to process events.");
-			return Task.CompletedTask;
-		}
-
 		private Task Client_GuildAvailable(DiscordClient sender, GuildCreateEventArgs e)
 		{
-			sender.Logger.LogInformation($"Guild available: { e.Guild.Name}");
+			sender.Logger.LogInformation($"Guild available: {e.Guild.Name}");
 			return Task.CompletedTask;
 		}
 
@@ -635,7 +628,8 @@ namespace WordOfTheDay
 					{
 						x.Nickname = member.DisplayName.Substring(0, member.DisplayName.Length - 2);
 					});
-				} else
+				}
+				else
 				{
 					member.ModifyAsync(x =>
 					{
@@ -699,8 +693,8 @@ namespace WordOfTheDay
 
 		//TODO mover estos metodos a HelperMethods.cs
 		#region helper methods
-		
-		
+
+
 		private DiscordEmbed GetVersionEmbed()
 		{
 			DiscordEmbedBuilder embedBuilder = new DiscordEmbedBuilder();
@@ -795,25 +789,6 @@ namespace WordOfTheDay
 		private bool IsAdmin(DiscordUser user)
 		{                               //heh
 			return IsAdmin((DiscordMember)user);
-		}
-
-
-
-		/// <summary>
-		/// Check if a message contains SST and if it has enough info to process a entry in the database
-		/// </summary>
-		/// <param name="content">Message with all the info</param>
-		/// <param name="sst"></param>
-		/// <returns>True if it can return a SST</returns>
-		private bool CheckSSTMessage(DiscordMessage msg, out Study_WorkSheet sst)
-		{
-			//Just in case is null we create it
-			sst = new Study_WorkSheet("0", "NULL", DateTime.MinValue, DateTime.MinValue);
-			string content = msg.Content.ToLower();
-
-			//Regex sst_regex = new Regex();
-
-			return false;
 		}
 		#endregion
 	}

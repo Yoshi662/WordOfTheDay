@@ -5,7 +5,6 @@ using DSharpPlus.Entities;
 using DSharpPlus.Exceptions;
 using DSharpPlus.Interactivity;
 using DSharpPlus.Interactivity.Extensions;
-using Emzi0767.Utilities;
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
