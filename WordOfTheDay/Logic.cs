@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
@@ -16,13 +17,17 @@ namespace WordOfTheDay
 
             XmlDocument rssXmlDoc = new XmlDocument();
 
-            // Load the RSS file from the RSS URL
-            rssXmlDoc.Load("http://feeds.feedblitz.com/spanish-word-of-the-day&x=1"); //Rss 
+            String rawUnparsedXML = "";
 
-            String rawUnparsedXML = rssXmlDoc.OuterXml;
-            rawUnparsedXML = rawUnparsedXML.Replace("<![CDATA[", "");
-            rawUnparsedXML = rawUnparsedXML.Replace("]]>", "");
-            rawUnparsedXML = rawUnparsedXML.Replace("</content:encoded>", "</Img></content:encoded>"); //Creo que esto es lo mas hardcoded que he visto jamas
+            var result = new HttpClient().GetAsync(@"https://feeds.feedblitz.com/spanish-word-of-the-day").Result;
+            if (!result.IsSuccessStatusCode) throw new Exception("Failed to download RSS feed");
+
+            rawUnparsedXML = result.Content.ReadAsStringAsync().Result;
+
+			rawUnparsedXML = rawUnparsedXML.Replace("<![CDATA[", "");
+			rawUnparsedXML = rawUnparsedXML.Replace("]]>", "");
+			rawUnparsedXML = rawUnparsedXML.Replace("</content:encoded>", "</Img></content:encoded>"); //Creo que esto es lo mas hardcoded que he visto jamas
+
             rssXmlDoc.LoadXml(rawUnparsedXML);
 
             Strings.Add(rssXmlDoc.SelectSingleNode("rss/channel/link").InnerText);
