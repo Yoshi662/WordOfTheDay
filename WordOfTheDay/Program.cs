@@ -454,12 +454,6 @@ namespace WordOfTheDay
 				}
 			}
 
-			if (mensaje.StartsWith("-usercount") && isAdmin)
-			{
-				UpdateUserCountChannel();
-				e.Message.CreateReactionAsync(DiscordEmoji.FromName(Client, ":white_check_mark:"));
-			}
-
 			//END OF IF WALL
 			return Task.CompletedTask;
 		}
@@ -674,19 +668,7 @@ namespace WordOfTheDay
 				TimeSpan diff = proximoWOTD - now;
 
 				HelperMethods.Delay((int)diff.TotalMilliseconds);
-				UpdateUserCountChannel();
 				SendWOTDAsync();
-			}
-		}
-
-		private void UpdateUserCountChannel()
-		{
-			if (languageServer.usercount.Name != "User Count: " + languageServer.guild.MemberCount)
-			{
-				languageServer.usercount.ModifyAsync(ch =>
-				{
-					ch.Name = "User Count: " + languageServer.guild.MemberCount;
-				});
 			}
 		}
 		#endregion
